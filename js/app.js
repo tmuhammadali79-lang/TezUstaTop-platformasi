@@ -905,7 +905,6 @@ window.openNewOrder = function(catId) {
                     <div style="display:flex;align-items:center;gap:12px">
                         <div class="avatar avatar-sm">${m.initials}</div>
                         <div style="flex:1"><div style="font-weight:600;font-size:0.875rem">${m.name} ${m.verified?'\u2705':''}</div><div style="font-size:0.75rem;color:var(--gray-500)">\u2b50${m.rating} \u2022 ${m.completedJobs} ish \u2022 ${m.distance}km</div></div>
-                        <div style="font-weight:700;color:var(--primary-600);font-size:0.875rem">${formatPrice(parseInt(m.price.replace(/ /g,'')))}</div>
                     </div>
                 </div>`).join('')}</div>
             </div>` : ''}
@@ -928,15 +927,38 @@ Router.register('client/orders', () => {
         <div id="orders-container">${renderOrdersList('all')}</div>
     </div>`;
 });
+
+window.clientAcceptPrice = function(id) {
+    const o = AppData.orders.find(x => x.id === id);
+    if (o) {
+        o.status = 'active';
+        o.price = parseInt(o.proposedPrice.replace(/ /g,'')) || 0;
+        showToast('Taklif qabul qilindi, ish boshlandi! ✅', 'success');
+        Router.navigate('client/orders');
+    }
+};
+window.clientRejectPrice = function(id) {
+    const o = AppData.orders.find(x => x.id === id);
+    if (o) {
+        o.status = 'pending';
+        o.masterId = null;
+        o.proposedPrice = null;
+        showToast('Taklif rad etildi, boshqa ustalar qidirilmoqda.', 'info');
+        Router.navigate('client/orders');
+    }
+};
+
 function renderOrdersList(filter) {
     let orders = AppData.orders;
-    if (filter === 'active') orders = orders.filter(o => ['active','pending','in_progress'].includes(o.status));
+    if (filter === 'active') orders = orders.filter(o => ['active','pending','in_progress','price_proposed'].includes(o.status));
     else if (filter === 'completed') orders = orders.filter(o => o.status === 'completed');
     else if (filter === 'cancelled') orders = orders.filter(o => o.status === 'cancelled');
     if (!orders.length) return `<div class="empty-state"><div class="empty-icon">📭</div><h3>Buyurtmalar topilmadi</h3><p>Hozircha bu filtrda buyurtmalar yo'q</p></div>`;
     return `<div class="orders-grid">${orders.map(o => {
         const cat = AppData.categories.find(c => c.id === o.categoryId);
         const master = AppData.masters.find(m => m.id === o.masterId);
+        const isProposed = o.status === 'price_proposed';
+        
         return `<div class="order-card" onclick="window.showOrderDetail(${o.id})">
             <div class="order-card-header">
                 <div class="order-card-service">${cat?cat.icon:''} ${o.service}</div>
@@ -947,10 +969,18 @@ function renderOrdersList(filter) {
                 <div class="avatar avatar-sm">${master.initials}</div>
                 <div><div style="font-weight:600;font-size:0.8125rem">${master.name}</div><div style="font-size:0.75rem;color:var(--gray-500)">${master.specialty}</div></div>
             </div>` : ''}
-            <div class="order-card-footer">
+            ${isProposed ? `
+                <div style="background:var(--primary-50);padding:12px;border-radius:var(--radius-sm);margin-top:12px">
+                    <div style="font-weight:600;margin-bottom:8px;font-size:0.875rem">Usta taklif qilgan narx: <span style="color:var(--primary-600)">${formatPrice(o.proposedPrice)}</span></div>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn-primary btn-sm" style="flex:1" onclick="event.stopPropagation();window.clientAcceptPrice(${o.id})">Qabul qilish</button>
+                        <button class="btn btn-outline btn-sm" style="flex:1;color:var(--danger-600);border-color:var(--danger-600)" onclick="event.stopPropagation();window.clientRejectPrice(${o.id})">Rad qilish</button>
+                    </div>
+                </div>
+            ` : `<div class="order-card-footer">
                 <span style="color:var(--gray-500);display:flex;align-items:center;gap:4px">${AppData.icons.location} ${o.address}</span>
-                <span class="order-price">${formatPrice(o.price)}</span>
-            </div>
+                <span class="order-price">${o.price ? formatPrice(o.price) : 'Kelishilgan'}</span>
+            </div>`}
             ${o.rating ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--gray-100);display:flex;align-items:center;gap:4px">${generateStars(o.rating)} <span style="font-size:0.75rem;color:var(--gray-500)">Sizning bahoyingiz</span></div>` : ''}
         </div>`;
     }).join('')}</div>`;
@@ -1266,14 +1296,46 @@ Router.register('master/home', () => {
     const pendingOrders = AppData.orders.filter(o => o.status === 'pending' && o.categoryId === masterData.categoryId && (!o.masterId || o.masterId === masterData.id));
     const activeOrders = AppData.orders.filter(o => ['active','in_progress'].includes(o.status) && o.masterId === masterData.id);
     
-    window.masterAcceptOrder = function(id) {
+    window.openProposePriceModal = function(id) {
         const o = AppData.orders.find(x => x.id === id);
-        if(o) {
-            o.status = 'active';
-            o.masterId = masterData.id;
-            showToast('Buyurtma qabul qilindi! ✅', 'success');
-            Router.navigate('master/home');
-        }
+        if(!o) return;
+        
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.onclick = function(e) { if(e.target===this) this.remove(); };
+        overlay.innerHTML = `<div class="modal-content" style="max-width:400px;text-align:center">
+            <div style="font-size:3rem;margin-bottom:16px">\ud83d\udcb0</div>
+            <h2 style="margin-bottom:8px">Narx taklif qilish</h2>
+            <p style="color:var(--gray-500);margin-bottom:20px;font-size:0.875rem">Ushbu ish uchun qancha narx so'raysiz?</p>
+            <div class="form-group" style="text-align:left">
+                <div style="position:relative">
+                    <input type="number" id="proposed-price-input" class="form-input" placeholder="Masalan: 150000" style="padding-right:48px;font-size:1.25rem;font-weight:700">
+                    <span style="position:absolute;right:16px;top:50%;transform:translateY(-50%);color:var(--gray-500);font-weight:600">so'm</span>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:24px">
+                <button class="btn btn-outline btn-block" onclick="this.closest('.modal-overlay').remove()">Bekor qilish</button>
+                <button class="btn btn-primary btn-block" id="confirm-price-btn">Yuborish</button>
+            </div>
+        </div>`;
+        document.body.appendChild(overlay);
+        
+        const input = document.getElementById('proposed-price-input');
+        input.focus();
+        
+        document.getElementById('confirm-price-btn').onclick = function() {
+            const price = input.value;
+            if (price && price.trim() !== "") {
+                o.status = 'price_proposed';
+                o.proposedPrice = price.trim() + " so'm";
+                o.masterId = masterData.id;
+                showToast('Taklifingiz mijozga yuborildi!', 'success');
+                overlay.remove();
+                Router.navigate('master/home');
+            } else {
+                showToast('Iltimos, narxni kiriting', 'error');
+            }
+        };
     };
 
     main().innerHTML = `<div class="page-container page-enter">
@@ -1310,7 +1372,7 @@ Router.register('master/home', () => {
                     </div>
                     <div style="display:flex;gap:8px">
                         <button class="btn btn-outline btn-sm" style="flex:1">${AppData.icons.eye} Ko'rish</button>
-                        <button class="btn btn-primary btn-sm" style="flex:1" onclick="window.masterAcceptOrder(${o.id})">Taklif berish</button>
+                        <button class="btn btn-primary btn-sm" style="flex:1" onclick="window.openProposePriceModal(${o.id})">Taklif berish</button>
                     </div>
                 </div>`;
             }).join('')}</div>
