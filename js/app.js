@@ -932,7 +932,7 @@ window.clientAcceptPrice = function(id) {
     const o = AppData.orders.find(x => x.id === id);
     if (o) {
         o.status = 'active';
-        o.price = parseInt(o.proposedPrice.replace(/ /g,'')) || 0;
+        o.price = parseInt(o.proposedPrice) || 0;
         showToast('Taklif qabul qilindi, ish boshlandi! ✅', 'success');
         Router.navigate('client/orders');
     }
@@ -1331,7 +1331,7 @@ Router.register('master/home', () => {
             const price = input.value;
             if (price && price.trim() !== "") {
                 o.status = 'price_proposed';
-                o.proposedPrice = price.trim() + " so'm";
+                o.proposedPrice = parseInt(price.trim().replace(/\D/g, ''), 10) || 0;
                 o.masterId = masterData.id;
                 showToast('Taklifingiz mijozga yuborildi!', 'success');
                 overlay.remove();
