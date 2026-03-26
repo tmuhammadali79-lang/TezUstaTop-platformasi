@@ -178,48 +178,57 @@ window.authGoToPhone = function() {
     renderLoginPage();
 };
 
+window.authGoToOtpBypass = function() {
+    window._authStep = 3;
+    window._otpSeconds = 60;
+    renderLoginPage();
+    if (window._otpTimer) clearInterval(window._otpTimer);
+    window._otpTimer = setInterval(otpCounterTick, 1000);
+    setTimeout(() => { const f = document.querySelector('.otp-input'); if(f) f.focus(); }, 100);
+};
+
 window.authGoToOtp = function() {
     const phoneInput = document.getElementById('auth-phone');
     const phone = phoneInput ? phoneInput.value.replace(/\s/g,'') : '';
     if (phone.length < 9) { showToast('Telefon raqamni to\'liq kiriting','error'); return; }
+    
+    // Mock registered numbers database
+    const registeredPhones = ['901234567', '931234567', '941234567', '991234567'];
+    
+    if (window._authMode === 'register' && registeredPhones.includes(phone)) {
+        window._authPhone = phone;
+        window._authStep = 'already_registered';
+        renderLoginPage();
+        return;
+    }
+    
+    if (window._authMode === 'login' && !registeredPhones.includes(phone) && phone !== '901234567') {
+        showToast('Bunday raqam ro\'yxatdan o\'tmagan! Avval ro\'yxatdan o\'ting.', 'error');
+        return;
+    }
+
     window._authPhone = phone;
-    window._authStep = 3;
-    window._otpSeconds = 60;
-    renderLoginPage();
-    // Start countdown
-    if (window._otpTimer) clearInterval(window._otpTimer);
-    window._otpTimer = setInterval(() => {
-        window._otpSeconds--;
-        const el = document.getElementById('otp-countdown');
-        if (el) {
-            if (window._otpSeconds > 0) {
-                el.innerHTML = `<span style="color:var(--gray-500)">Qayta yuborish: <strong style="color:var(--primary-600)">${window._otpSeconds}s</strong></span>`;
-            } else {
-                el.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="window.authResendOtp()" style="color:var(--primary-600);font-weight:600">📩 Kodni qayta yuborish</button>`;
-                clearInterval(window._otpTimer);
-            }
-        }
-    }, 1000);
-    // Auto-focus first OTP input
-    setTimeout(() => { const f = document.querySelector('.otp-input'); if(f) f.focus(); }, 100);
+    window.authGoToOtpBypass();
 };
+
+function otpCounterTick() {
+    window._otpSeconds--;
+    const el = document.getElementById('otp-countdown');
+    if (el) {
+        if (window._otpSeconds > 0) {
+            el.innerHTML = `<span style="color:var(--gray-500)">Qayta yuborish: <strong style="color:var(--primary-600)">${window._otpSeconds}s</strong></span>`;
+        } else {
+            el.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="window.authResendOtp()" style="color:var(--primary-600);font-weight:600">📩 Kodni qayta yuborish</button>`;
+            clearInterval(window._otpTimer);
+        }
+    }
+}
 
 window.authResendOtp = function() {
     window._otpSeconds = 60;
     showToast('Yangi SMS kod yuborildi!', 'success');
     if (window._otpTimer) clearInterval(window._otpTimer);
-    window._otpTimer = setInterval(() => {
-        window._otpSeconds--;
-        const el = document.getElementById('otp-countdown');
-        if (el) {
-            if (window._otpSeconds > 0) {
-                el.innerHTML = `<span style="color:var(--gray-500)">Qayta yuborish: <strong style="color:var(--primary-600)">${window._otpSeconds}s</strong></span>`;
-            } else {
-                el.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="window.authResendOtp()" style="color:var(--primary-600);font-weight:600">📩 Kodni qayta yuborish</button>`;
-                clearInterval(window._otpTimer);
-            }
-        }
-    }, 1000);
+    window._otpTimer = setInterval(otpCounterTick, 1000);
 };
 
 window.authVerifyOtp = function() {
@@ -232,11 +241,12 @@ window.authVerifyOtp = function() {
     setTimeout(() => {
         if (window._otpTimer) clearInterval(window._otpTimer);
         showToast('Telefon raqam tasdiqlandi! ✅', 'success');
-        if (window._selectedRole === 'master') {
-            // Masters go to document upload
+        if (window._authMode === 'register' && window._selectedRole === 'master') {
+            // Masters go to document upload ONLY if registering
             window._authStep = 4;
             setTimeout(() => renderLoginPage(), 400);
         } else {
+            // Login bypasses document upload for existing masters
             setTimeout(() => doLogin(window._selectedRole), 400);
         }
     }, 1500);
@@ -283,38 +293,60 @@ window.formatPhoneInput = function(el) {
 function renderLoginPage() {
     hideSidebar();
     renderNavbar();
+    if (!window._authMode) window._authMode = 'login';
     const step = window._authStep || 1;
     const isMaster = window._selectedRole === 'master';
     const roleName = {client:'Mijoz',master:'Usta',admin:'Admin'}[window._selectedRole] || '';
 
-    // Step indicators - 5 steps for master, 3 for others
-    let stepsHtml;
-    if (isMaster) {
-        const stepNames = ['Rol','Telefon','OTP','Hujjatlar','Kutish'];
-        stepsHtml = `<div class="auth-steps">${stepNames.map((name, i) => {
-            const n = i + 1;
-            return `${i > 0 ? `<div class="auth-step-line ${step > n-1 ? 'active' : ''}"></div>` : ''}
-            <div class="auth-step ${step >= n ? 'active' : ''} ${step > n ? 'done' : ''}">
-                <div class="auth-step-dot">${step > n ? '\u2713' : n}</div>
-                <span>${name}</span>
+    // Step indicators
+    let stepsHtml = '';
+    if (typeof step === 'number') {
+        if (isMaster && window._authMode === 'register') {
+            const stepNames = ['Rol','Telefon','OTP','Hujjatlar','Kutish'];
+            stepsHtml = `<div class="auth-steps" style="margin-top:16px">${stepNames.map((name, i) => {
+                const n = i + 1;
+                return `${i > 0 ? `<div class="auth-step-line ${step > n-1 ? 'active' : ''}"></div>` : ''}
+                <div class="auth-step ${step >= n ? 'active' : ''} ${step > n ? 'done' : ''}">
+                    <div class="auth-step-dot">${step > n ? '\u2713' : n}</div>
+                    <span>${name}</span>
+                </div>`;
+            }).join('')}</div>`;
+        } else {
+            stepsHtml = `<div class="auth-steps" style="margin-top:16px">
+                <div class="auth-step ${step >= 1 ? 'active' : ''} ${step > 1 ? 'done' : ''}"><div class="auth-step-dot">${step > 1 ? '\u2713' : '1'}</div><span>Rol</span></div>
+                <div class="auth-step-line ${step > 1 ? 'active' : ''}"></div>
+                <div class="auth-step ${step >= 2 ? 'active' : ''} ${step > 2 ? 'done' : ''}"><div class="auth-step-dot">${step > 2 ? '\u2713' : '2'}</div><span>Telefon</span></div>
+                <div class="auth-step-line ${step > 2 ? 'active' : ''}"></div>
+                <div class="auth-step ${step >= 3 ? 'active' : ''}"><div class="auth-step-dot">3</div><span>Tasdiqlash</span></div>
             </div>`;
-        }).join('')}</div>`;
-    } else {
-        stepsHtml = `<div class="auth-steps">
-            <div class="auth-step ${step >= 1 ? 'active' : ''} ${step > 1 ? 'done' : ''}"><div class="auth-step-dot">${step > 1 ? '\u2713' : '1'}</div><span>Rol</span></div>
-            <div class="auth-step-line ${step > 1 ? 'active' : ''}"></div>
-            <div class="auth-step ${step >= 2 ? 'active' : ''} ${step > 2 ? 'done' : ''}"><div class="auth-step-dot">${step > 2 ? '\u2713' : '2'}</div><span>Telefon</span></div>
-            <div class="auth-step-line ${step > 2 ? 'active' : ''}"></div>
-            <div class="auth-step ${step >= 3 ? 'active' : ''}"><div class="auth-step-dot">3</div><span>Tasdiqlash</span></div>
-        </div>`;
+        }
     }
+
+    const tabsHtml = `
+        <div style="display:flex;margin-bottom:24px;border-bottom:2px solid var(--gray-200)">
+            <div style="flex:1;text-align:center;padding:12px;cursor:pointer;font-weight:600;transition:all 0.2s;${window._authMode==='login'?'border-bottom:2px solid var(--primary-600);color:var(--primary-600);margin-bottom:-2px':'color:var(--gray-500)'}" onclick="window._authMode='login';window._authStep=1;renderLoginPage()">Kirish</div>
+            <div style="flex:1;text-align:center;padding:12px;cursor:pointer;font-weight:600;transition:all 0.2s;${window._authMode==='register'?'border-bottom:2px solid var(--primary-600);color:var(--primary-600);margin-bottom:-2px':'color:var(--gray-500)'}" onclick="window._authMode='register';window._authStep=1;renderLoginPage()">Ro'yxatdan o'tish</div>
+        </div>
+    `;
 
     let bodyHtml = '';
 
-    if (step === 1) {
+    if (step === 'already_registered') {
         bodyHtml = `
-            <h1>\ud83d\udc4b Xush kelibsiz!</h1>
-            <p class="auth-subtitle">Kim sifatida kirmoqchisiz?</p>
+            <div style="text-align:center;padding:20px">
+                <div style="font-size:4rem;margin-bottom:16px">⚠️</div>
+                <h2 style="margin-bottom:12px;font-size:1.5rem">Siz avval ro'yxatdan o'tgansiz</h2>
+                <p style="color:var(--gray-600);margin-bottom:24px;line-height:1.5"><strong>+998 ${window._authPhone}</strong> raqami tizimda mavjud. Yangitdan ro'yxatdan o'tish o'rniga, eski profilingizga kirishingiz mumkin.</p>
+                <button class="btn btn-primary btn-lg btn-block" onclick="window._authMode='login';window.authGoToOtpBypass()">Eski profilga kirish</button>
+                <button class="btn btn-ghost btn-block" style="margin-top:12px" onclick="window._authStep=2;renderLoginPage()">Boshqa raqam kiritish</button>
+            </div>
+        `;
+    } else if (step === 1) {
+        bodyHtml = `
+            <div style="text-align:center;margin-bottom:24px">
+                <h1 style="font-size:1.75rem">\ud83d\udc4b Xush kelibsiz!</h1>
+                <p class="auth-subtitle">${window._authMode === 'login' ? 'Tizimga kirish uchun rolingizni tanlang' : 'Ro\'yxatdan o\'tish uchun rolingizni tanlang'}</p>
+            </div>
             <div class="role-cards">
                 <div class="role-card ${window._selectedRole==='client'?'selected':''}" onclick="this.parentElement.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));this.classList.add('selected');window._selectedRole='client'">
                     <div class="role-icon" style="background:var(--primary-50);color:var(--primary-600)">\ud83d\udc64</div>
@@ -335,14 +367,14 @@ function renderLoginPage() {
             <div style="text-align:center;margin-bottom:8px">
                 <div style="width:80px;height:80px;border-radius:50%;background:var(--primary-50);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.5rem">\ud83d\udcf1</div>
                 <h1 style="font-size:1.75rem">Telefon raqamingiz</h1>
-                <p class="auth-subtitle">${roleName} sifatida kirish uchun telefon raqamingizni kiriting</p>
+                <p class="auth-subtitle">${roleName} sifatida ${window._authMode === 'login' ? 'tizimga kirish' : 'ro\'yxatdan o\'tish'} uchun telefon raqamingizni kiriting</p>
             </div>
             <div class="phone-input-group">
                 <div class="phone-prefix">
                     <span style="font-size:1.25rem">\ud83c\uddfa\ud83c\uddff</span>
                     <span style="font-weight:700;color:var(--gray-800)">+998</span>
                 </div>
-                <input type="tel" id="auth-phone" class="form-input phone-number-input" placeholder="90 123 45 67" maxlength="12" oninput="formatPhoneInput(this)" autofocus>
+                <input type="tel" id="auth-phone" class="form-input phone-number-input" placeholder="90 123 45 67" maxlength="12" oninput="formatPhoneInput(this)" onkeydown="if(event.key==='Enter')authGoToOtp()" value="${window._authPhone||''}" autofocus>
             </div>
             <p style="font-size:0.75rem;color:var(--gray-500);margin:12px 0 20px;text-align:center">SMS orqali tasdiqlash kodi yuboriladi</p>
             <button class="btn btn-primary btn-lg btn-block" onclick="authGoToOtp()">\ud83d\udce9 SMS kod yuborish</button>
@@ -457,11 +489,14 @@ function renderLoginPage() {
             </div>`;
     }
 
+    const showTabs = (step === 1 || step === 2) && typeof step === 'number';
+
     main().innerHTML = `<div class="auth-container page-enter">
         <div class="auth-card" ${step === 4 ? 'style="max-width:520px"' : ''}>
+            ${showTabs ? tabsHtml : ''}
             ${stepsHtml}
             ${bodyHtml}
-            ${step < 4 ? '<p style="text-align:center;margin-top:20px;color:var(--gray-500);font-size:0.8125rem"><a onclick="window._authStep=1;Router.navigate(\'\')" style="color:var(--primary-600);cursor:pointer;font-weight:600">\u2190 Bosh sahifaga qaytish</a></p>' : ''}
+            ${typeof step === 'number' && step < 4 ? '<p style="text-align:center;margin-top:20px;color:var(--gray-500);font-size:0.8125rem"><a onclick="window._authStep=1;window._authMode=\'login\';Router.navigate(\'\')" style="color:var(--primary-600);cursor:pointer;font-weight:600">\u2190 Bosh sahifaga qaytish</a></p>' : ''}
         </div>
     </div>`;
 }
