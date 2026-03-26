@@ -627,51 +627,441 @@ Router.register('client/home', () => {
     </div>`;
 });
 
+/* ---------- CLIENT SERVICES ---------- */
 Router.register('client/services', () => {
     renderNavbar(); renderSidebar('client');
     main().innerHTML = `<div class="page-container page-enter">
-        <h2 style="margin-bottom:24px">Xizmatlar</h2>
-        <div class="categories-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
-            ${AppData.categories.map(c => `<div class="category-card">
-                <div class="category-icon" style="background:${c.bgColor};width:64px;height:64px;font-size:2rem">${c.icon}</div>
-                <div class="category-name">${c.name}</div>
-                <div style="font-size:0.75rem;color:var(--gray-500)">${c.subServices.length} xizmat</div>
-            </div>`).join('')}
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+            <h2>Xizmatlar</h2>
+            <div style="position:relative;width:300px">
+                <input class="form-input" placeholder="Xizmat qidirish..." style="padding-left:40px" id="svc-search" oninput="window.filterServices(this.value)">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--gray-400)">${AppData.icons.search}</span>
+            </div>
+        </div>
+        <div id="services-list">
+            ${AppData.categories.map(c => `
+                <div class="card" style="margin-bottom:16px;overflow:hidden" id="cat-${c.id}">
+                    <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="window.toggleCategory(${c.id})">
+                        <div style="display:flex;align-items:center;gap:16px">
+                            <div class="category-icon" style="background:${c.bgColor};width:56px;height:56px;font-size:1.75rem">${c.icon}</div>
+                            <div>
+                                <div style="font-weight:700;color:var(--gray-900);font-size:1.0625rem">${c.name}</div>
+                                <div style="font-size:0.8125rem;color:var(--gray-500)">${c.subServices.length} xizmat mavjud</div>
+                            </div>
+                        </div>
+                        <span id="cat-arrow-${c.id}" style="transition:var(--transition-fast);color:var(--gray-400)">${AppData.icons.arrowRight}</span>
+                    </div>
+                    <div id="cat-services-${c.id}" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-100)">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+                            ${c.subServices.map(s => `<div class="card" style="padding:14px;cursor:pointer;border:1px solid var(--gray-100)" onclick="window.openNewOrder('${s}',${c.id})" onmouseover="this.style.borderColor='var(--primary-300)'" onmouseout="this.style.borderColor='var(--gray-100)'">
+                                <div style="font-weight:600;font-size:0.875rem;color:var(--gray-800)">${s}</div>
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+                                    <span style="font-size:0.75rem;color:var(--gray-500)">${AppData.masters.filter(m=>m.categoryId===c.id).length} ta usta</span>
+                                    <span style="font-size:0.75rem;font-weight:600;color:var(--primary-600)">Buyurtma →</span>
+                                </div>
+                            </div>`).join('')}
+                        </div>
+                        <div style="margin-top:16px"><div style="font-weight:600;font-size:0.875rem;color:var(--gray-700);margin-bottom:12px">Bu sohada ustalar:</div>
+                            <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px">
+                                ${AppData.masters.filter(m=>m.categoryId===c.id).map(m => `<div style="min-width:200px;padding:14px;background:var(--gray-50);border-radius:var(--radius-md);display:flex;align-items:center;gap:12px">
+                                    <div class="avatar avatar-sm">${m.initials}</div>
+                                    <div><div style="font-weight:600;font-size:0.8125rem">${m.name}</div><div style="font-size:0.75rem;color:var(--gray-500)">⭐${m.rating} • ${m.completedJobs} ish</div></div>
+                                </div>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    </div>`;
+});
+window.toggleCategory = function(id) {
+    const el = document.getElementById('cat-services-' + id);
+    const arrow = document.getElementById('cat-arrow-' + id);
+    if (el.style.display === 'none') { el.style.display = 'block'; arrow.style.transform = 'rotate(90deg)'; }
+    else { el.style.display = 'none'; arrow.style.transform = 'rotate(0)'; }
+};
+window.filterServices = function(q) {
+    q = q.toLowerCase();
+    AppData.categories.forEach(c => {
+        const el = document.getElementById('cat-' + c.id);
+        const match = c.name.toLowerCase().includes(q) || c.subServices.some(s => s.toLowerCase().includes(q));
+        if (el) el.style.display = match ? '' : 'none';
+    });
+};
+window.openNewOrder = function(service, catId) {
+    const cat = AppData.categories.find(c => c.id === catId);
+    const masters = AppData.masters.filter(m => m.categoryId === catId);
+    main().querySelector('.page-container').innerHTML = `
+        <div style="margin-bottom:24px"><button class="btn btn-ghost btn-sm" onclick="Router.navigate('client/services')">← Orqaga</button></div>
+        <div class="card" style="max-width:700px">
+            <h2 style="margin-bottom:4px">${cat ? cat.icon : ''} ${service}</h2>
+            <p style="color:var(--gray-500);margin-bottom:24px">${cat ? cat.name : ''} xizmati</p>
+            <div class="form-group"><label class="form-label">Tavsif</label><textarea class="form-input form-textarea" placeholder="Muammoni batafsil yozing..."></textarea></div>
+            <div class="form-group"><label class="form-label">Manzil</label><input class="form-input" placeholder="Tuman, ko'cha, uy raqami"></div>
+            <div class="form-group"><label class="form-label">Qachon kerak?</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-outline btn-sm" onclick="this.parentElement.querySelectorAll('.btn').forEach(b=>{b.className='btn btn-outline btn-sm'});this.className='btn btn-primary btn-sm'" style="flex:1">Hozir</button>
+                    <button class="btn btn-outline btn-sm" onclick="this.parentElement.querySelectorAll('.btn').forEach(b=>{b.className='btn btn-outline btn-sm'});this.className='btn btn-primary btn-sm'" style="flex:1">Bugun</button>
+                    <button class="btn btn-outline btn-sm" onclick="this.parentElement.querySelectorAll('.btn').forEach(b=>{b.className='btn btn-outline btn-sm'});this.className='btn btn-primary btn-sm'" style="flex:1">Ertaga</button>
+                    <button class="btn btn-outline btn-sm" onclick="this.parentElement.querySelectorAll('.btn').forEach(b=>{b.className='btn btn-outline btn-sm'});this.className='btn btn-primary btn-sm'" style="flex:1">Boshqa</button>
+                </div>
+            </div>
+            ${masters.length ? `<div class="form-group"><label class="form-label">Usta tanlash (ixtiyoriy)</label>
+                <div style="display:grid;gap:8px">${masters.map(m => `<div class="card" style="padding:12px;cursor:pointer;border:2px solid var(--gray-200)" onclick="this.parentElement.querySelectorAll('.card').forEach(c=>c.style.borderColor='var(--gray-200)');this.style.borderColor='var(--primary-500)'">
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <div class="avatar avatar-sm">${m.initials}</div>
+                        <div style="flex:1"><div style="font-weight:600;font-size:0.875rem">${m.name} ${m.verified?'✅':''}</div><div style="font-size:0.75rem;color:var(--gray-500)">⭐${m.rating} • ${m.completedJobs} ish • ${m.distance}km</div></div>
+                        <div style="font-weight:700;color:var(--primary-600);font-size:0.875rem">${formatPrice(parseInt(m.price.replace(/ /g,'')))}</div>
+                    </div>
+                </div>`).join('')}</div>
+            </div>` : ''}
+            <button class="btn btn-primary btn-lg btn-block" onclick="showToast('Buyurtma yaratildi! ✅ Ustalar tez orada javob beradi','success');setTimeout(()=>Router.navigate('client/orders'),1500)">📩 Buyurtma yuborish</button>
+        </div>`;
+};
+
+/* ---------- CLIENT ORDERS ---------- */
+Router.register('client/orders', () => {
+    renderNavbar(); renderSidebar('client');
+    const tabs = [{id:'all',t:'Barchasi'},{id:'active',t:'Faol'},{id:'completed',t:'Bajarilgan'},{id:'cancelled',t:'Bekor'}];
+    main().innerHTML = `<div class="page-container page-enter">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+            <h2>Buyurtmalarim</h2>
+            <button class="btn btn-primary btn-sm" onclick="Router.navigate('client/services')">+ Yangi buyurtma</button>
+        </div>
+        <div class="tabs" style="margin-bottom:24px" id="order-tabs">
+            ${tabs.map((t,i) => `<div class="tab ${i===0?'active':''}" onclick="window.filterOrders('${t.id}');this.parentElement.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));this.classList.add('active')">${t.t}</div>`).join('')}
+        </div>
+        <div id="orders-container">${renderOrdersList('all')}</div>
+    </div>`;
+});
+function renderOrdersList(filter) {
+    let orders = AppData.orders;
+    if (filter === 'active') orders = orders.filter(o => ['active','pending','in_progress'].includes(o.status));
+    else if (filter === 'completed') orders = orders.filter(o => o.status === 'completed');
+    else if (filter === 'cancelled') orders = orders.filter(o => o.status === 'cancelled');
+    if (!orders.length) return `<div class="empty-state"><div class="empty-icon">📭</div><h3>Buyurtmalar topilmadi</h3><p>Hozircha bu filtrda buyurtmalar yo'q</p></div>`;
+    return `<div class="orders-grid">${orders.map(o => {
+        const cat = AppData.categories.find(c => c.id === o.categoryId);
+        const master = AppData.masters.find(m => m.id === o.masterId);
+        return `<div class="order-card" onclick="window.showOrderDetail(${o.id})">
+            <div class="order-card-header">
+                <div class="order-card-service">${cat?cat.icon:''} ${o.service}</div>
+                <span class="badge badge-${getStatusClass(o.status)}">${getStatusText(o.status)}</span>
+            </div>
+            <div class="order-card-body">${o.description}</div>
+            ${master ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px;background:var(--gray-50);border-radius:var(--radius-sm)">
+                <div class="avatar avatar-sm">${master.initials}</div>
+                <div><div style="font-weight:600;font-size:0.8125rem">${master.name}</div><div style="font-size:0.75rem;color:var(--gray-500)">${master.specialty}</div></div>
+            </div>` : ''}
+            <div class="order-card-footer">
+                <span style="color:var(--gray-500);display:flex;align-items:center;gap:4px">${AppData.icons.location} ${o.address}</span>
+                <span class="order-price">${formatPrice(o.price)}</span>
+            </div>
+            ${o.rating ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--gray-100);display:flex;align-items:center;gap:4px">${generateStars(o.rating)} <span style="font-size:0.75rem;color:var(--gray-500)">Sizning bahoyingiz</span></div>` : ''}
+        </div>`;
+    }).join('')}</div>`;
+}
+window.filterOrders = function(filter) {
+    document.getElementById('orders-container').innerHTML = renderOrdersList(filter);
+};
+window.showOrderDetail = function(id) {
+    const o = AppData.orders.find(x => x.id === id);
+    if (!o) return;
+    const cat = AppData.categories.find(c => c.id === o.categoryId);
+    const master = AppData.masters.find(m => m.id === o.masterId);
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.onclick = function(e) { if(e.target===this) this.remove(); };
+    overlay.innerHTML = `<div class="modal-content">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <h2 style="font-size:1.25rem">Buyurtma #${o.id}</h2>
+            <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">${AppData.icons.x}</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+            <span style="font-size:1.5rem">${cat?cat.icon:''}</span>
+            <div><div style="font-weight:700">${o.service}</div><span class="badge badge-${getStatusClass(o.status)}">${getStatusText(o.status)}</span></div>
+        </div>
+        <div class="card" style="margin-bottom:16px;padding:16px">
+            <div style="font-weight:600;font-size:0.8125rem;color:var(--gray-500);margin-bottom:4px">Tavsif</div>
+            <div style="color:var(--gray-800)">${o.description}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            <div class="card" style="padding:14px;text-align:center"><div style="font-size:0.75rem;color:var(--gray-500)">Narx</div><div style="font-weight:700;color:var(--primary-700);font-size:1.125rem">${formatPrice(o.price)}</div></div>
+            <div class="card" style="padding:14px;text-align:center"><div style="font-size:0.75rem;color:var(--gray-500)">Vaqt</div><div style="font-weight:700;color:var(--gray-800)">${o.scheduledTime}</div></div>
+        </div>
+        <div class="card" style="padding:14px;margin-bottom:16px"><div style="font-size:0.75rem;color:var(--gray-500);margin-bottom:4px">📍 Manzil</div><div style="font-weight:600">${o.address}</div></div>
+        ${master ? `<div class="card" style="padding:14px;margin-bottom:16px">
+            <div style="font-size:0.75rem;color:var(--gray-500);margin-bottom:8px">Usta</div>
+            <div style="display:flex;align-items:center;gap:12px">
+                <div class="avatar">${master.initials}</div>
+                <div style="flex:1"><div style="font-weight:700">${master.name} ${master.verified?'✅':''}</div><div style="font-size:0.8125rem;color:var(--gray-500)">${master.specialty} • ⭐${master.rating}</div></div>
+                <button class="btn btn-outline btn-sm" onclick="showToast('Ustaga qo\\'ng\\'iroq qilinyapti...','info')">📞</button>
+            </div>
+        </div>` : ''}
+        <div style="display:flex;gap:8px">
+            ${o.status==='active' ? `<button class="btn btn-danger btn-sm" style="flex:1" onclick="showToast('Buyurtma bekor qilindi','error');this.closest('.modal-overlay').remove()">Bekor qilish</button>
+            <button class="btn btn-primary btn-sm" style="flex:1" onclick="showToast('Usta bilan chat ochildi','success');this.closest('.modal-overlay').remove()">💬 Yozish</button>` : ''}
+            ${o.status==='completed'&&!o.rating ? `<button class="btn btn-primary btn-block" onclick="showToast('Baho berildi ⭐','success');this.closest('.modal-overlay').remove()">⭐ Baho berish</button>` : ''}
+            ${o.status==='pending' ? `<button class="btn btn-danger btn-sm" style="flex:1" onclick="showToast('Buyurtma bekor qilindi','error');this.closest('.modal-overlay').remove()">Bekor qilish</button>` : ''}
+        </div>
+    </div>`;
+    document.body.appendChild(overlay);
+};
+
+/* ---------- CLIENT CHAT ---------- */
+Router.register('client/chat', () => {
+    renderNavbar(); renderSidebar('client');
+    const chats = [
+        {id:1,name:'Aziz Karimov',initials:'AK',spec:'Santexnik',lastMsg:'Yaxshi, soat 14:00 da kelaman','time':'12:30',unread:2,online:true},
+        {id:2,name:'Bobur Toshmatov',initials:'BT',spec:'Elektrik',lastMsg:'Ish bajarildi, rahmat!','time':'Kecha',unread:0,online:false},
+        {id:3,name:'Rustam Qodirov',initials:'RQ',spec:'Mebel ustasi',lastMsg:'Foto yuboring, narxini aytaman','time':'22.03',unread:1,online:true},
+    ];
+    main().innerHTML = `<div class="page-container page-enter">
+        <h2 style="margin-bottom:24px">Xabarlar</h2>
+        <div style="display:grid;grid-template-columns:340px 1fr;gap:0;border:1px solid var(--gray-200);border-radius:var(--radius-xl);overflow:hidden;min-height:520px;background:white">
+            <!-- Chat List -->
+            <div style="border-right:1px solid var(--gray-200);display:flex;flex-direction:column">
+                <div style="padding:16px;border-bottom:1px solid var(--gray-100)">
+                    <input class="form-input" placeholder="Chat qidirish..." style="font-size:0.8125rem;min-height:38px">
+                </div>
+                <div style="flex:1;overflow-y:auto" id="chat-list">
+                    ${chats.map((c,i) => `<div class="chat-list-item ${i===0?'active':''}" onclick="window.openChat(${c.id})" id="chat-item-${c.id}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;transition:var(--transition-fast);border-bottom:1px solid var(--gray-50);${i===0?'background:var(--primary-50)':''}">
+                        <div style="position:relative">
+                            <div class="avatar avatar-sm" style="background:${i%2===0?'var(--gradient-primary)':'var(--gradient-accent)'}">${c.initials}</div>
+                            ${c.online ? '<div style="position:absolute;bottom:0;right:0;width:10px;height:10px;background:var(--success-400);border-radius:50%;border:2px solid white"></div>':''}
+                        </div>
+                        <div style="flex:1;min-width:0">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <span style="font-weight:600;font-size:0.875rem;color:var(--gray-900)">${c.name}</span>
+                                <span style="font-size:0.6875rem;color:var(--gray-400)">${c.time}</span>
+                            </div>
+                            <div style="font-size:0.75rem;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.lastMsg}</div>
+                        </div>
+                        ${c.unread ? `<span style="background:var(--primary-500);color:white;font-size:0.625rem;font-weight:700;padding:2px 6px;border-radius:var(--radius-full);min-width:18px;text-align:center">${c.unread}</span>` : ''}
+                    </div>`).join('')}
+                </div>
+            </div>
+            <!-- Chat Window -->
+            <div style="display:flex;flex-direction:column" id="chat-window">
+                <div style="padding:14px 20px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;gap:12px">
+                    <div class="avatar avatar-sm">${chats[0].initials}</div>
+                    <div style="flex:1"><div style="font-weight:700;font-size:0.9375rem">${chats[0].name}</div><div style="font-size:0.6875rem;color:var(--success-500)">● Online</div></div>
+                    <button class="btn btn-ghost btn-icon btn-sm" onclick="showToast('Qo\\'ng\\'iroq qilinyapti...','info')">📞</button>
+                </div>
+                <div style="flex:1;padding:20px;overflow-y:auto;background:var(--gray-50);display:flex;flex-direction:column;gap:12px" id="chat-messages">
+                    <div style="align-self:flex-start;max-width:70%;background:white;padding:10px 14px;border-radius:16px 16px 16px 4px;box-shadow:var(--shadow-xs)">
+                        <div style="font-size:0.875rem;color:var(--gray-800)">Assalomu alaykum! Kran muammosi bormi?</div>
+                        <div style="font-size:0.625rem;color:var(--gray-400);text-align:right;margin-top:4px">12:15</div>
+                    </div>
+                    <div style="align-self:flex-end;max-width:70%;background:var(--primary-500);color:white;padding:10px 14px;border-radius:16px 16px 4px 16px;box-shadow:var(--shadow-xs)">
+                        <div style="font-size:0.875rem">Ha, oshxonadagi kran oqyapti, tezda kerakku</div>
+                        <div style="font-size:0.625rem;opacity:0.7;text-align:right;margin-top:4px">12:20 ✓✓</div>
+                    </div>
+                    <div style="align-self:flex-start;max-width:70%;background:white;padding:10px 14px;border-radius:16px 16px 16px 4px;box-shadow:var(--shadow-xs)">
+                        <div style="font-size:0.875rem;color:var(--gray-800)">Yaxshi, bugun kelamanmi? Soat 14:00 bo'ladimi?</div>
+                        <div style="font-size:0.625rem;color:var(--gray-400);text-align:right;margin-top:4px">12:25</div>
+                    </div>
+                    <div style="align-self:flex-end;max-width:70%;background:var(--primary-500);color:white;padding:10px 14px;border-radius:16px 16px 4px 16px;box-shadow:var(--shadow-xs)">
+                        <div style="font-size:0.875rem">Ha, bo'ladi 👍</div>
+                        <div style="font-size:0.625rem;opacity:0.7;text-align:right;margin-top:4px">12:28 ✓✓</div>
+                    </div>
+                    <div style="align-self:flex-start;max-width:70%;background:white;padding:10px 14px;border-radius:16px 16px 16px 4px;box-shadow:var(--shadow-xs)">
+                        <div style="font-size:0.875rem;color:var(--gray-800)">Yaxshi, soat 14:00 da kelaman</div>
+                        <div style="font-size:0.625rem;color:var(--gray-400);text-align:right;margin-top:4px">12:30</div>
+                    </div>
+                </div>
+                <div style="padding:12px 16px;border-top:1px solid var(--gray-100);display:flex;gap:8px;align-items:center;background:white">
+                    <button class="btn btn-ghost btn-icon btn-sm">📎</button>
+                    <input class="form-input" placeholder="Xabar yozing..." style="min-height:40px;font-size:0.875rem" id="chat-input" onkeydown="if(event.key==='Enter')window.sendChatMsg()">
+                    <button class="btn btn-primary btn-sm" style="padding:8px 16px" onclick="window.sendChatMsg()">📩</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+});
+window.openChat = function(id) {
+    document.querySelectorAll('#chat-list > div').forEach(el => { el.style.background = ''; });
+    const item = document.getElementById('chat-item-' + id);
+    if (item) item.style.background = 'var(--primary-50)';
+};
+window.sendChatMsg = function() {
+    const input = document.getElementById('chat-input');
+    if (!input || !input.value.trim()) return;
+    const msgs = document.getElementById('chat-messages');
+    const now = new Date();
+    const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+    msgs.innerHTML += `<div style="align-self:flex-end;max-width:70%;background:var(--primary-500);color:white;padding:10px 14px;border-radius:16px 16px 4px 16px;box-shadow:var(--shadow-xs);animation:fadeInUp 0.2s ease-out">
+        <div style="font-size:0.875rem">${input.value}</div>
+        <div style="font-size:0.625rem;opacity:0.7;text-align:right;margin-top:4px">${time} ✓</div>
+    </div>`;
+    input.value = '';
+    msgs.scrollTop = msgs.scrollHeight;
+    // Simulate reply
+    setTimeout(() => {
+        const replies = ['Yaxshi!','Tushundim 👍','OK, kelishildi','Ha, albatta','Bir ozdan keyin javob beraman'];
+        msgs.innerHTML += `<div style="align-self:flex-start;max-width:70%;background:white;padding:10px 14px;border-radius:16px 16px 16px 4px;box-shadow:var(--shadow-xs);animation:fadeInUp 0.2s ease-out">
+            <div style="font-size:0.875rem;color:var(--gray-800)">${replies[Math.floor(Math.random()*replies.length)]}</div>
+            <div style="font-size:0.625rem;color:var(--gray-400);text-align:right;margin-top:4px">${time}</div>
+        </div>`;
+        msgs.scrollTop = msgs.scrollHeight;
+    }, 1500);
+};
+
+/* ---------- CLIENT PROFILE ---------- */
+Router.register('client/profile', () => {
+    renderNavbar(); renderSidebar('client');
+    const u = AppData.currentUser;
+    main().innerHTML = `<div class="page-container page-enter">
+        <h2 style="margin-bottom:24px">Profilim</h2>
+        <!-- Profile Header -->
+        <div class="card" style="margin-bottom:20px;overflow:hidden">
+            <div style="background:var(--gradient-hero);padding:32px;display:flex;align-items:center;gap:20px;margin:-20px -20px 20px;border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+                <div class="avatar avatar-xl" style="border:3px solid white;font-size:1.75rem">${u.initials}</div>
+                <div style="color:white">
+                    <div style="font-family:var(--font-display);font-size:1.5rem;font-weight:800">${u.name}</div>
+                    <div style="opacity:0.85;font-size:0.875rem">Mijoz • Ro'yxatdan o'tgan: Mart 2026</div>
+                    <div style="display:flex;gap:16px;margin-top:8px">
+                        <span style="font-size:0.8125rem">📦 ${AppData.orders.length} buyurtma</span>
+                        <span style="font-size:0.8125rem">⭐ 4.9 baho</span>
+                    </div>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div><label class="form-label">Ism</label><input class="form-input" value="${u.name}"></div>
+                <div><label class="form-label">Telefon</label><input class="form-input" value="+998 90 123 45 67"></div>
+                <div><label class="form-label">Email</label><input class="form-input" value="abdulloh@email.com" placeholder="Email"></div>
+                <div><label class="form-label">Tug'ilgan sana</label><input class="form-input" type="date" value="1995-06-15"></div>
+            </div>
+            <button class="btn btn-primary btn-sm" style="margin-top:16px" onclick="showToast('Profil saqlandi ✅','success')">💾 Saqlash</button>
+        </div>
+        <!-- Payment Methods -->
+        <div class="card" style="margin-bottom:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <h3 style="font-size:1rem">💳 To'lov usullari</h3>
+                <button class="btn btn-ghost btn-sm" onclick="showToast('Yangi karta qo\\'shildi','success')">+ Qo'shish</button>
+            </div>
+            <div style="display:grid;gap:12px">
+                <div class="card" style="padding:14px;background:linear-gradient(135deg,#1E293B,#334155);color:white;border:none">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <div style="font-family:var(--font-display);font-size:1rem;letter-spacing:2px">•••• •••• •••• 4532</div>
+                        <div style="font-weight:700;font-size:0.875rem">HUMO</div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:0.75rem;opacity:0.7">
+                        <span>${u.name}</span><span>09/28</span>
+                    </div>
+                </div>
+                <div class="card" style="padding:14px;background:linear-gradient(135deg,#6366F1,#8B5CF6);color:white;border:none">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <div style="font-family:var(--font-display);font-size:1rem;letter-spacing:2px">•••• •••• •••• 8910</div>
+                        <div style="font-weight:700;font-size:0.875rem">UzCard</div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:0.75rem;opacity:0.7">
+                        <span>${u.name}</span><span>12/27</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Addresses -->
+        <div class="card" style="margin-bottom:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <h3 style="font-size:1rem">📍 Saqlangan manzillar</h3>
+                <button class="btn btn-ghost btn-sm" onclick="showToast('Yangi manzil saqlandi','success')">+ Qo'shish</button>
+            </div>
+            <div style="display:grid;gap:10px">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--gray-50);border-radius:var(--radius-md)">
+                    <span style="font-size:1.25rem">🏠</span>
+                    <div style="flex:1"><div style="font-weight:600;font-size:0.875rem">Uyim</div><div style="font-size:0.75rem;color:var(--gray-500)">Mirzo Ulug'bek tumani, Buyuk Ipak Yo'li 45</div></div>
+                    <span class="badge badge-primary">Asosiy</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--gray-50);border-radius:var(--radius-md)">
+                    <span style="font-size:1.25rem">🏢</span>
+                    <div style="flex:1"><div style="font-weight:600;font-size:0.875rem">Ish joyim</div><div style="font-size:0.75rem;color:var(--gray-500)">Yunusobod tumani, Amir Temur shox ko'chasi 108</div></div>
+                </div>
+            </div>
+        </div>
+        <!-- Danger Zone -->
+        <div class="card" style="border-color:var(--danger-200)">
+            <h3 style="font-size:1rem;color:var(--danger-600);margin-bottom:12px">⚠️ Xavfli zona</h3>
+            <div style="display:flex;gap:12px">
+                <button class="btn btn-outline btn-sm" style="border-color:var(--danger-200);color:var(--danger-600)" onclick="showToast('Qo\\'llab-quvvatlash bilan bog\\'laning','info')">Hisobni muzlatish</button>
+                <button class="btn btn-danger btn-sm" onclick="showToast('Ishonchingiz komilmi? Bu amalni ortga qaytarib bo\\'lmaydi','error')">Hisobni o'chirish</button>
+            </div>
         </div>
     </div>`;
 });
 
-Router.register('client/orders', () => {
+/* ---------- CLIENT SETTINGS ---------- */
+Router.register('client/settings', () => {
     renderNavbar(); renderSidebar('client');
     main().innerHTML = `<div class="page-container page-enter">
-        <h2 style="margin-bottom:24px">Buyurtmalarim</h2>
-        <div class="orders-grid">${AppData.orders.map(o => {
-            const cat = AppData.categories.find(c => c.id === o.categoryId);
-            return `<div class="order-card">
-                <div class="order-card-header">
-                    <div class="order-card-service">${cat ? cat.icon : ''} ${o.service}</div>
-                    <span class="badge badge-${getStatusClass(o.status)}">${getStatusText(o.status)}</span>
-                </div>
-                <div class="order-card-body">${o.description}</div>
-                <div class="order-card-footer"><span style="color:var(--gray-500)">${o.address}</span><span class="order-price">${formatPrice(o.price)}</span></div>
-            </div>`;
-        }).join('')}</div>
-    </div>`;
-});
-
-['client/chat','client/profile','client/settings'].forEach(route => {
-    const titles = {'client/chat':'Xabarlar','client/profile':'Profilim','client/settings':'Sozlamalar'};
-    Router.register(route, () => {
-        renderNavbar(); renderSidebar('client');
-        main().innerHTML = `<div class="page-container page-enter">
-            <h2 style="margin-bottom:24px">${titles[route]}</h2>
-            <div class="card" style="padding:40px;text-align:center">
-                <div style="font-size:3rem;margin-bottom:16px">🚧</div>
-                <h3 style="color:var(--gray-700)">Tez orada</h3>
-                <p style="color:var(--gray-500);margin-top:8px">Bu bo'lim hozirda ishlab chiqilmoqda</p>
+        <h2 style="margin-bottom:24px">Sozlamalar</h2>
+        <!-- Notifications -->
+        <div class="card" style="margin-bottom:20px">
+            <h3 style="font-size:1rem;margin-bottom:16px">🔔 Bildirishnomalar</h3>
+            <div style="display:flex;flex-direction:column;gap:4px">
+                ${[{t:'Yangi buyurtma xabarlari',d:'Yangi buyurtmalar haqida bildirishnoma',on:true},
+                   {t:'SMS bildirishnomalar',d:'Muhim yangiliklar SMS orqali',on:true},
+                   {t:'Email bildirishnomalar',d:'Haftalik hisobot email orqali',on:false},
+                   {t:'Reklama xabarlari',d:'Chegirmalar va aksiyalar haqida',on:false}].map(n => `
+                <div class="profile-menu-item" style="padding:12px 0">
+                    <div class="menu-text" style="flex:1"><div class="menu-label">${n.t}</div><div class="menu-sublabel">${n.d}</div></div>
+                    <div class="toggle ${n.on?'active':''}" onclick="this.classList.toggle('active');showToast('Sozlama yangilandi','success')"></div>
+                </div>`).join('')}
             </div>
-        </div>`;
-    });
+        </div>
+        <!-- Appearance -->
+        <div class="card" style="margin-bottom:20px">
+            <h3 style="font-size:1rem;margin-bottom:16px">🎨 Ko'rinish</h3>
+            <div class="profile-menu-item" style="padding:12px 0">
+                <div class="menu-text" style="flex:1"><div class="menu-label">Qorong'i rejim</div><div class="menu-sublabel">Tungi rejimni yoqish</div></div>
+                <div class="toggle" onclick="this.classList.toggle('active');showToast('Tez orada qo\\'shiladi','info')"></div>
+            </div>
+        </div>
+        <!-- Language -->
+        <div class="card" style="margin-bottom:20px">
+            <h3 style="font-size:1rem;margin-bottom:16px">🌐 Til</h3>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-primary btn-sm">🇺🇿 O'zbek</button>
+                <button class="btn btn-outline btn-sm" onclick="showToast('Til o\\'zgartirildi','success')">🇷🇺 Русский</button>
+                <button class="btn btn-outline btn-sm" onclick="showToast('Til o\\'zgartirildi','success')">🇬🇧 English</button>
+            </div>
+        </div>
+        <!-- Privacy -->
+        <div class="card" style="margin-bottom:20px">
+            <h3 style="font-size:1rem;margin-bottom:16px">🔒 Xavfsizlik</h3>
+            <div style="display:flex;flex-direction:column;gap:4px">
+                <div class="profile-menu-item" onclick="showToast('Parol o\\'zgartirish oynasi ochildi','info')" style="padding:12px 0">
+                    <div class="menu-icon" style="background:var(--primary-50);color:var(--primary-600)">🔑</div>
+                    <div class="menu-text"><div class="menu-label">Parolni o'zgartirish</div><div class="menu-sublabel">Oxirgi o'zgartirilgan: 30 kun oldin</div></div>
+                    <span style="color:var(--gray-400)">${AppData.icons.arrowRight}</span>
+                </div>
+                <div class="profile-menu-item" onclick="showToast('2FA yoqildi ✅','success')" style="padding:12px 0">
+                    <div class="menu-icon" style="background:var(--success-50);color:var(--success-600)">🛡️</div>
+                    <div class="menu-text"><div class="menu-label">Ikki bosqichli tasdiqlash</div><div class="menu-sublabel">SMS orqali qo'shimcha himoya</div></div>
+                    <div class="toggle active" onclick="event.stopPropagation();this.classList.toggle('active')"></div>
+                </div>
+                <div class="profile-menu-item" onclick="showToast('Faol seanslar ko\\'rsatildi','info')" style="padding:12px 0">
+                    <div class="menu-icon" style="background:var(--warm-50);color:var(--warm-600)">📱</div>
+                    <div class="menu-text"><div class="menu-label">Faol seanslar</div><div class="menu-sublabel">2 ta qurilmada faol</div></div>
+                    <span style="color:var(--gray-400)">${AppData.icons.arrowRight}</span>
+                </div>
+            </div>
+        </div>
+        <!-- About -->
+        <div class="card">
+            <h3 style="font-size:1rem;margin-bottom:16px">ℹ️ Ilova haqida</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:0.875rem">
+                <div><span style="color:var(--gray-500)">Versiya:</span> <strong>2.1.0</strong></div>
+                <div><span style="color:var(--gray-500)">Yangilangan:</span> <strong>26.03.2026</strong></div>
+            </div>
+            <div style="margin-top:16px;display:flex;gap:8px">
+                <button class="btn btn-outline btn-sm" onclick="showToast('FAQ ochildi','info')">❓ FAQ</button>
+                <button class="btn btn-outline btn-sm" onclick="showToast('Qo\\'llab-quvvatlash bilan bog\\'landingiz','info')">💬 Yordam</button>
+                <button class="btn btn-outline btn-sm" onclick="showToast('Foydalanish shartlari','info')">📄 Shartlar</button>
+            </div>
+        </div>
+    </div>`;
 });
 
 /* ---- MASTER PAGES ---- */
