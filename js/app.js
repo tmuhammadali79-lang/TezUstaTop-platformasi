@@ -1181,10 +1181,10 @@ Router.register('master/profile', () => {
         <div class="card" style="margin-bottom:20px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
                 <h3 style="font-size:1rem">🛠 Ko'nikmalar va sertifikatlar</h3>
-                <button class="btn btn-ghost btn-sm" onclick="showToast('Yangi ko\\'nikma qo\\'shildi','success')">+ Qo'shish</button>
+                <button class="btn btn-ghost btn-sm" onclick="showToast('Yangi konima qoshildi','success')">+ Qo'shish</button>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-                ${['Kran ta\\'mirlash','Truba almashtirish','Kanalizatsiya','Dush kabina','Suvni isitgich'].map(s => `<span class="badge badge-primary" style="padding:6px 12px;font-size:0.8125rem">${s}</span>`).join('')}
+                ${['Kran tamirlash','Truba almashtirish','Kanalizatsiya','Dush kabina','Suvni isitgich'].map(s => `<span class="badge badge-primary" style="padding:6px 12px;font-size:0.8125rem">${s}</span>`).join('')}
             </div>
             <div style="display:grid;gap:10px">
                 <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--gray-50);border-radius:var(--radius-md)">
@@ -1225,7 +1225,7 @@ Router.register('master/profile', () => {
             <h3 style="font-size:1rem;margin-bottom:16px">💰 Narxlar</h3>
             <div style="display:grid;gap:10px">
                 ${[
-                    {s:'Kran ta\\'mirlash',p:'50 000 - 150 000'},
+                    {s:'Kran tamirlash',p:'50 000 - 150 000'},
                     {s:'Truba almashtirish',p:'100 000 - 300 000'},
                     {s:'Kanalizatsiya tozalash',p:'80 000 - 200 000'},
                 ].map(item => `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)">
@@ -1248,7 +1248,7 @@ Router.register('master/settings', () => {
             <h3 style="font-size:1rem;margin-bottom:16px">🟢 Mavjudlik</h3>
             <div class="profile-menu-item" style="padding:12px 0">
                 <div class="menu-text" style="flex:1"><div class="menu-label">Online holat</div><div class="menu-sublabel">Yangi buyurtmalar qabul qilish uchun online bo'ling</div></div>
-                <div class="toggle active" onclick="this.classList.toggle('active');showToast(this.classList.contains('active')?'Online holat yoqildi ✅':'Offline holatga o\\'tdingiz','success')"></div>
+                <div class="toggle active" onclick="this.classList.toggle('active');showToast(this.classList.contains('active')?'Online holat yoqildi ✅':'Offline holatga otdingiz','success')"></div>
             </div>
             <div class="profile-menu-item" style="padding:12px 0">
                 <div class="menu-text" style="flex:1"><div class="menu-label">Avtomatik qabul qilish</div><div class="menu-sublabel">Yangi buyurtmalarni avtomatik qabul qilish</div></div>
@@ -1285,7 +1285,7 @@ Router.register('master/settings', () => {
                 ${[{t:'Yangi buyurtma xabarlari',d:'Yangi buyurtmalar haqida darhol xabar',on:true},
                    {t:'SMS bildirishnomalar',d:'Muhim yangiliklar SMS orqali',on:true},
                    {t:'Mijoz xabarlari',d:'Chat xabarlari kelganda bildirishnoma',on:true},
-                   {t:'To\\'lov xabarlari',d:'Pul tushganda bildirishnoma',on:true},
+                   {t:'Tolov xabarlari',d:'Pul tushganda bildirishnoma',on:true},
                    {t:'Reklama xabarlari',d:'Chegirmalar va aksiyalar haqida',on:false}].map(n => `
                 <div class="profile-menu-item" style="padding:12px 0">
                     <div class="menu-text" style="flex:1"><div class="menu-label">${n.t}</div><div class="menu-sublabel">${n.d}</div></div>
@@ -1297,7 +1297,7 @@ Router.register('master/settings', () => {
         <div class="card" style="margin-bottom:20px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
                 <h3 style="font-size:1rem">💳 To'lov ma'lumotlari</h3>
-                <button class="btn btn-ghost btn-sm" onclick="showToast('Yangi karta qo\\'shildi','success')">+ Qo'shish</button>
+                <button class="btn btn-ghost btn-sm" onclick="showToast('Yangi karta qoshildi','success')">+ Qo'shish</button>
             </div>
             <div style="display:grid;gap:12px">
                 <div class="card" style="padding:14px;background:linear-gradient(135deg,#14B8A6,#06B6D4);color:white;border:none">
@@ -1316,15 +1316,15 @@ Router.register('master/settings', () => {
         <div class="card" style="margin-bottom:20px">
             <h3 style="font-size:1rem;margin-bottom:16px">📍 Xizmat hududlari</h3>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-                ${['Mirzo Ulug\\'bek','Yunusobod','Chilonzor','Sergeli','Yakkasaroy'].map(d => `<span class="badge badge-accent" style="padding:6px 12px;font-size:0.8125rem">${d} ✕</span>`).join('')}
+                ${['Mirzo Ulugbek','Yunusobod','Chilonzor','Sergeli','Yakkasaroy'].map(d => `<span class="badge badge-accent" style="padding:6px 12px;font-size:0.8125rem">${d} ✕</span>`).join('')}
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="showToast('Yangi tuman qo\\'shildi','success')">+ Tuman qo'shish</button>
+            <button class="btn btn-ghost btn-sm" onclick="showToast('Yangi tuman qoshildi','success')">+ Tuman qo'shish</button>
         </div>
         <!-- Security -->
         <div class="card" style="margin-bottom:20px">
             <h3 style="font-size:1rem;margin-bottom:16px">🔒 Xavfsizlik</h3>
             <div style="display:flex;flex-direction:column;gap:4px">
-                <div class="profile-menu-item" onclick="showToast('Parol o\\'zgartirish oynasi ochildi','info')" style="padding:12px 0">
+                <div class="profile-menu-item" onclick="showToast('Parol ozgartirish oynasi ochildi','info')" style="padding:12px 0">
                     <div class="menu-icon" style="background:var(--primary-50);color:var(--primary-600)">🔑</div>
                     <div class="menu-text"><div class="menu-label">Parolni o'zgartirish</div><div class="menu-sublabel">Oxirgi o'zgartirilgan: 15 kun oldin</div></div>
                     <span style="color:var(--gray-400)">${AppData.icons.arrowRight}</span>
@@ -1341,8 +1341,8 @@ Router.register('master/settings', () => {
             <h3 style="font-size:1rem;margin-bottom:16px">🌐 Til</h3>
             <div style="display:flex;gap:8px">
                 <button class="btn btn-primary btn-sm">🇺🇿 O'zbek</button>
-                <button class="btn btn-outline btn-sm" onclick="showToast('Til o\\'zgartirildi','success')">🇷🇺 Русский</button>
-                <button class="btn btn-outline btn-sm" onclick="showToast('Til o\\'zgartirildi','success')">🇬🇧 English</button>
+                <button class="btn btn-outline btn-sm" onclick="showToast('Til ozgartirildi','success')">🇷🇺 Русский</button>
+                <button class="btn btn-outline btn-sm" onclick="showToast('Til ozgartirildi','success')">🇬🇧 English</button>
             </div>
         </div>
     </div>`;
