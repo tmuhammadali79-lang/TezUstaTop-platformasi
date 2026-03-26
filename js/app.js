@@ -1295,6 +1295,35 @@ Router.register('client/settings', () => {
 });
 
 /* ---- MASTER PAGES ---- */
+window.manageActiveOrder = function(id) {
+    const o = AppData.orders.find(x => x.id === id);
+    if(!o) return;
+    const isStarted = o.status === 'in_progress';
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.onclick = function(e) { if(e.target===this) this.remove(); };
+    overlay.innerHTML = `<div class="modal-content" style="max-width:400px;text-align:center;animation: modal-enter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)">
+        <div style="font-size:3rem;margin-bottom:16px">${isStarted ? '\ud83d\udea7' : '\ud83d\udee0\ufe0f'}</div>
+        <h2 style="margin-bottom:8px;font-size:1.5rem">Ishni boshqarish</h2>
+        <p style="color:var(--gray-500);margin-bottom:24px;font-size:0.875rem"><strong>${o.service}</strong> bo'yicha harakatni tanlang</p>
+        
+        <div style="display:flex;flex-direction:column;gap:12px">
+            ${!isStarted ? `<button class="btn btn-primary btn-block btn-lg" onclick="window.updateOrderStatus(${o.id}, 'in_progress'); this.closest('.modal-overlay').remove()">Ishni boshlash</button>` : ''}
+            <button class="btn btn-success btn-block btn-lg" onclick="window.updateOrderStatus(${o.id}, 'completed'); this.closest('.modal-overlay').remove()">Ishni tugatdim</button>
+            <button class="btn btn-outline btn-block" onclick="this.closest('.modal-overlay').remove()">Yopish</button>
+        </div>
+    </div>`;
+    document.body.appendChild(overlay);
+};
+
+window.updateOrderStatus = function(id, st) {
+    const o = AppData.orders.find(x => x.id === id);
+    if(!o) return;
+    o.status = st;
+    showToast(st === 'completed' ? 'Ish muvaffaqiyatli tugatildi! ✅' : 'Ish boshlandi! 🚀', 'success');
+    Router.navigate(Router.getCurrentRoute());
+};
+
 Router.register('master/home', () => {
     renderNavbar(); renderSidebar('master');
     const u = AppData.currentUser;
@@ -1345,6 +1374,8 @@ Router.register('master/home', () => {
         };
     };
 
+
+
     main().innerHTML = `<div class="page-container page-enter">
         <div class="dash-welcome" style="background:linear-gradient(160deg,#14B8A6 0%,#06B6D4 50%,#0EA5E9 100%)">
             <h2>Xush kelibsiz, ${u.name} 🔧</h2>
@@ -1388,7 +1419,7 @@ Router.register('master/home', () => {
             ${activeOrders.map(o => `<div class="card" style="border-left:4px solid var(--accent-500)">
                 <div style="display:flex;justify-content:space-between;align-items:center">
                     <div><strong>${o.service}</strong><div style="font-size:0.8125rem;color:var(--gray-500)">${o.address}</div></div>
-                    <button class="btn btn-accent btn-sm">Boshqarish</button>
+                    <button class="btn btn-accent btn-sm" onclick="window.manageActiveOrder(${o.id})">Boshqarish</button>
                 </div>
             </div>`).join('')}
         </div>` : ''}
@@ -1410,6 +1441,7 @@ Router.register('master/orders', () => {
                 <div class="order-card-header"><div class="order-card-service">${cat?cat.icon:''} ${o.service}</div><span class="badge badge-${getStatusClass(o.status)}">${getStatusText(o.status)}</span></div>
                 <div class="order-card-body">${o.description}</div>
                 <div class="order-card-footer"><span style="color:var(--gray-500)">${o.address}</span><span class="order-price">${o.price ? formatPrice(o.price) : 'Kelishilgan'}</span></div>
+                ${['active','in_progress'].includes(o.status) ? `<div style="margin-top:12px"><button class="btn btn-accent btn-sm btn-block" onclick="window.manageActiveOrder(${o.id})">Boshqarish</button></div>` : ''}
             </div>`;
         }).join('')}</div>` : `<div style="text-align:center;padding:40px;color:var(--gray-500)">Sizda hali ishlar yo'q</div>`}
     </div>`;
