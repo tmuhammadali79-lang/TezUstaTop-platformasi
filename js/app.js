@@ -1143,13 +1143,209 @@ Router.register('master/wallet', () => {
     </div>`;
 });
 
-['master/profile','master/settings'].forEach(route => {
-    const titles = {'master/profile':'Profilim','master/settings':'Sozlamalar'};
-    Router.register(route, () => {
-        renderNavbar(); renderSidebar('master');
-        main().innerHTML = `<div class="page-container page-enter"><h2 style="margin-bottom:24px">${titles[route]}</h2>
-            <div class="card" style="padding:40px;text-align:center"><div style="font-size:3rem;margin-bottom:16px">🚧</div><h3 style="color:var(--gray-700)">Tez orada</h3><p style="color:var(--gray-500);margin-top:8px">Bu bo'lim ishlab chiqilmoqda</p></div></div>`;
-    });
+/* ---------- MASTER PROFILE ---------- */
+Router.register('master/profile', () => {
+    renderNavbar(); renderSidebar('master');
+    const u = AppData.currentUser;
+    const masterData = AppData.masters.find(m => m.initials === u.initials) || AppData.masters[0];
+    main().innerHTML = `<div class="page-container page-enter">
+        <h2 style="margin-bottom:24px">Profilim</h2>
+        <!-- Profile Header -->
+        <div class="card" style="margin-bottom:20px;overflow:hidden">
+            <div style="background:linear-gradient(160deg,#14B8A6 0%,#06B6D4 50%,#0EA5E9 100%);padding:32px;display:flex;align-items:center;gap:20px;margin:-20px -20px 20px;border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+                <div class="avatar avatar-xl" style="border:3px solid white;font-size:1.75rem">${u.initials}</div>
+                <div style="color:white;flex:1">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span style="font-family:var(--font-display);font-size:1.5rem;font-weight:800">${u.name}</span>
+                        <span style="background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:var(--radius-full);font-size:0.6875rem;font-weight:600">✅ Tasdiqlangan</span>
+                    </div>
+                    <div style="opacity:0.85;font-size:0.875rem">${masterData.specialty} • ${masterData.district}</div>
+                    <div style="display:flex;gap:20px;margin-top:12px;flex-wrap:wrap">
+                        <div style="text-align:center"><div style="font-family:var(--font-display);font-size:1.25rem;font-weight:800">${masterData.completedJobs}</div><div style="font-size:0.6875rem;opacity:0.8">Bajarilgan ish</div></div>
+                        <div style="text-align:center"><div style="font-family:var(--font-display);font-size:1.25rem;font-weight:800">⭐ ${masterData.rating}</div><div style="font-size:0.6875rem;opacity:0.8">Reyting</div></div>
+                        <div style="text-align:center"><div style="font-family:var(--font-display);font-size:1.25rem;font-weight:800">${masterData.reviewCount}</div><div style="font-size:0.6875rem;opacity:0.8">Sharhlar</div></div>
+                        <div style="text-align:center"><div style="font-family:var(--font-display);font-size:1.25rem;font-weight:800">${formatPrice(u.balance)}</div><div style="font-size:0.6875rem;opacity:0.8">Balans</div></div>
+                    </div>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div><label class="form-label">Ism</label><input class="form-input" value="${u.name}"></div>
+                <div><label class="form-label">Telefon</label><input class="form-input" value="+998 93 777 88 99"></div>
+                <div><label class="form-label">Mutaxassislik</label><input class="form-input" value="${masterData.specialty}"></div>
+                <div><label class="form-label">Tuman</label><input class="form-input" value="${masterData.district}"></div>
+                <div style="grid-column:1/3"><label class="form-label">Bio</label><textarea class="form-input form-textarea" rows="3">${masterData.bio}</textarea></div>
+            </div>
+            <button class="btn btn-primary btn-sm" style="margin-top:16px" onclick="showToast('Profil saqlandi ✅','success')">💾 Saqlash</button>
+        </div>
+        <!-- Skills & Certificates -->
+        <div class="card" style="margin-bottom:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <h3 style="font-size:1rem">🛠 Ko'nikmalar va sertifikatlar</h3>
+                <button class="btn btn-ghost btn-sm" onclick="showToast('Yangi ko\\'nikma qo\\'shildi','success')">+ Qo'shish</button>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+                ${['Kran ta\\'mirlash','Truba almashtirish','Kanalizatsiya','Dush kabina','Suvni isitgich'].map(s => `<span class="badge badge-primary" style="padding:6px 12px;font-size:0.8125rem">${s}</span>`).join('')}
+            </div>
+            <div style="display:grid;gap:10px">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--gray-50);border-radius:var(--radius-md)">
+                    <span style="font-size:1.25rem">📜</span>
+                    <div style="flex:1"><div style="font-weight:600;font-size:0.875rem">Professional santexnik sertifikati</div><div style="font-size:0.75rem;color:var(--gray-500)">Berilgan: 2020-yil • Amal qiladi</div></div>
+                    <span class="badge badge-success">Tasdiqlangan</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--gray-50);border-radius:var(--radius-md)">
+                    <span style="font-size:1.25rem">🆔</span>
+                    <div style="flex:1"><div style="font-weight:600;font-size:0.875rem">Shaxsni tasdiqlovchi hujjat</div><div style="font-size:0.75rem;color:var(--gray-500)">Passport • Yuklangan</div></div>
+                    <span class="badge badge-success">Tasdiqlangan</span>
+                </div>
+            </div>
+        </div>
+        <!-- Reviews -->
+        <div class="card" style="margin-bottom:20px">
+            <h3 style="font-size:1rem;margin-bottom:16px">⭐ Oxirgi sharhlar</h3>
+            <div style="display:grid;gap:12px">
+                ${[
+                    {name:'Abdulloh R.',rating:5,text:'Ajoyib usta! Krani 30 daqiqada tuzatdi. Tavsiya qilaman.',date:'2 kun oldin'},
+                    {name:'Sardor M.',rating:5,text:'Juda tez va professional ishladi. Narxi ham arzon.',date:'5 kun oldin'},
+                    {name:'Nodira K.',rating:4,text:'Yaxshi ishladi, lekin biroz kech keldi.',date:'1 hafta oldin'},
+                ].map(r => `<div style="padding:14px;background:var(--gray-50);border-radius:var(--radius-md)">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <div class="avatar avatar-sm" style="width:28px;height:28px;font-size:0.625rem">${r.name.split(' ').map(w=>w[0]).join('')}</div>
+                            <span style="font-weight:600;font-size:0.875rem">${r.name}</span>
+                        </div>
+                        <span style="font-size:0.6875rem;color:var(--gray-400)">${r.date}</span>
+                    </div>
+                    <div style="margin-bottom:6px">${generateStars(r.rating)}</div>
+                    <div style="font-size:0.8125rem;color:var(--gray-700)">${r.text}</div>
+                </div>`).join('')}
+            </div>
+        </div>
+        <!-- Pricing -->
+        <div class="card">
+            <h3 style="font-size:1rem;margin-bottom:16px">💰 Narxlar</h3>
+            <div style="display:grid;gap:10px">
+                ${[
+                    {s:'Kran ta\\'mirlash',p:'50 000 - 150 000'},
+                    {s:'Truba almashtirish',p:'100 000 - 300 000'},
+                    {s:'Kanalizatsiya tozalash',p:'80 000 - 200 000'},
+                ].map(item => `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)">
+                    <span style="font-size:0.875rem;font-weight:500">${item.s}</span>
+                    <span style="font-weight:700;color:var(--primary-600);font-size:0.875rem">${item.p} so'm</span>
+                </div>`).join('')}
+            </div>
+            <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="showToast('Narxlar tahrirlash ochildi','info')">✏️ Narxlarni tahrirlash</button>
+        </div>
+    </div>`;
+});
+
+/* ---------- MASTER SETTINGS ---------- */
+Router.register('master/settings', () => {
+    renderNavbar(); renderSidebar('master');
+    main().innerHTML = `<div class="page-container page-enter">
+        <h2 style="margin-bottom:24px">Sozlamalar</h2>
+        <!-- Availability -->
+        <div class="card" style="margin-bottom:20px">
+            <h3 style="font-size:1rem;margin-bottom:16px">🟢 Mavjudlik</h3>
+            <div class="profile-menu-item" style="padding:12px 0">
+                <div class="menu-text" style="flex:1"><div class="menu-label">Online holat</div><div class="menu-sublabel">Yangi buyurtmalar qabul qilish uchun online bo'ling</div></div>
+                <div class="toggle active" onclick="this.classList.toggle('active');showToast(this.classList.contains('active')?'Online holat yoqildi ✅':'Offline holatga o\\'tdingiz','success')"></div>
+            </div>
+            <div class="profile-menu-item" style="padding:12px 0">
+                <div class="menu-text" style="flex:1"><div class="menu-label">Avtomatik qabul qilish</div><div class="menu-sublabel">Yangi buyurtmalarni avtomatik qabul qilish</div></div>
+                <div class="toggle" onclick="this.classList.toggle('active');showToast('Sozlama yangilandi','success')"></div>
+            </div>
+        </div>
+        <!-- Work Schedule -->
+        <div class="card" style="margin-bottom:20px">
+            <h3 style="font-size:1rem;margin-bottom:16px">📅 Ish jadvali</h3>
+            <div style="display:grid;gap:8px">
+                ${[
+                    {d:'Dushanba',from:'09:00',to:'18:00',on:true},
+                    {d:'Seshanba',from:'09:00',to:'18:00',on:true},
+                    {d:'Chorshanba',from:'09:00',to:'18:00',on:true},
+                    {d:'Payshanba',from:'09:00',to:'18:00',on:true},
+                    {d:'Juma',from:'09:00',to:'18:00',on:true},
+                    {d:'Shanba',from:'10:00',to:'15:00',on:true},
+                    {d:'Yakshanba',from:'',to:'',on:false},
+                ].map(day => `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--gray-50)">
+                    <div class="toggle ${day.on?'active':''}" onclick="this.classList.toggle('active')" style="transform:scale(0.8)"></div>
+                    <span style="font-weight:600;font-size:0.875rem;width:100px">${day.d}</span>
+                    ${day.on ? `<input class="form-input" type="time" value="${day.from}" style="width:110px;min-height:36px;font-size:0.8125rem;padding:4px 8px"> 
+                    <span style="color:var(--gray-400)">—</span>
+                    <input class="form-input" type="time" value="${day.to}" style="width:110px;min-height:36px;font-size:0.8125rem;padding:4px 8px">` 
+                    : `<span style="font-size:0.8125rem;color:var(--gray-400)">Dam olish kuni</span>`}
+                </div>`).join('')}
+            </div>
+            <button class="btn btn-primary btn-sm" style="margin-top:16px" onclick="showToast('Jadval saqlandi ✅','success')">💾 Saqlash</button>
+        </div>
+        <!-- Notifications -->
+        <div class="card" style="margin-bottom:20px">
+            <h3 style="font-size:1rem;margin-bottom:16px">🔔 Bildirishnomalar</h3>
+            <div style="display:flex;flex-direction:column;gap:4px">
+                ${[{t:'Yangi buyurtma xabarlari',d:'Yangi buyurtmalar haqida darhol xabar',on:true},
+                   {t:'SMS bildirishnomalar',d:'Muhim yangiliklar SMS orqali',on:true},
+                   {t:'Mijoz xabarlari',d:'Chat xabarlari kelganda bildirishnoma',on:true},
+                   {t:'To\\'lov xabarlari',d:'Pul tushganda bildirishnoma',on:true},
+                   {t:'Reklama xabarlari',d:'Chegirmalar va aksiyalar haqida',on:false}].map(n => `
+                <div class="profile-menu-item" style="padding:12px 0">
+                    <div class="menu-text" style="flex:1"><div class="menu-label">${n.t}</div><div class="menu-sublabel">${n.d}</div></div>
+                    <div class="toggle ${n.on?'active':''}" onclick="this.classList.toggle('active');showToast('Sozlama yangilandi','success')"></div>
+                </div>`).join('')}
+            </div>
+        </div>
+        <!-- Payment -->
+        <div class="card" style="margin-bottom:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <h3 style="font-size:1rem">💳 To'lov ma'lumotlari</h3>
+                <button class="btn btn-ghost btn-sm" onclick="showToast('Yangi karta qo\\'shildi','success')">+ Qo'shish</button>
+            </div>
+            <div style="display:grid;gap:12px">
+                <div class="card" style="padding:14px;background:linear-gradient(135deg,#14B8A6,#06B6D4);color:white;border:none">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <div style="font-family:var(--font-display);font-size:1rem;letter-spacing:2px">•••• •••• •••• 7845</div>
+                        <div style="font-weight:700;font-size:0.875rem">HUMO</div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:0.75rem;opacity:0.7">
+                        <span>Aziz Karimov</span><span>05/29</span>
+                    </div>
+                </div>
+            </div>
+            <p style="font-size:0.75rem;color:var(--gray-500);margin-top:8px">Daromad shu kartaga tushadi</p>
+        </div>
+        <!-- Service Area -->
+        <div class="card" style="margin-bottom:20px">
+            <h3 style="font-size:1rem;margin-bottom:16px">📍 Xizmat hududlari</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+                ${['Mirzo Ulug\\'bek','Yunusobod','Chilonzor','Sergeli','Yakkasaroy'].map(d => `<span class="badge badge-accent" style="padding:6px 12px;font-size:0.8125rem">${d} ✕</span>`).join('')}
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="showToast('Yangi tuman qo\\'shildi','success')">+ Tuman qo'shish</button>
+        </div>
+        <!-- Security -->
+        <div class="card" style="margin-bottom:20px">
+            <h3 style="font-size:1rem;margin-bottom:16px">🔒 Xavfsizlik</h3>
+            <div style="display:flex;flex-direction:column;gap:4px">
+                <div class="profile-menu-item" onclick="showToast('Parol o\\'zgartirish oynasi ochildi','info')" style="padding:12px 0">
+                    <div class="menu-icon" style="background:var(--primary-50);color:var(--primary-600)">🔑</div>
+                    <div class="menu-text"><div class="menu-label">Parolni o'zgartirish</div><div class="menu-sublabel">Oxirgi o'zgartirilgan: 15 kun oldin</div></div>
+                    <span style="color:var(--gray-400)">${AppData.icons.arrowRight}</span>
+                </div>
+                <div class="profile-menu-item" style="padding:12px 0">
+                    <div class="menu-icon" style="background:var(--success-50);color:var(--success-600)">🛡️</div>
+                    <div class="menu-text"><div class="menu-label">Ikki bosqichli tasdiqlash</div><div class="menu-sublabel">SMS orqali qo'shimcha himoya</div></div>
+                    <div class="toggle active" onclick="event.stopPropagation();this.classList.toggle('active');showToast('2FA sozlamasi yangilandi','success')"></div>
+                </div>
+            </div>
+        </div>
+        <!-- Language -->
+        <div class="card">
+            <h3 style="font-size:1rem;margin-bottom:16px">🌐 Til</h3>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-primary btn-sm">🇺🇿 O'zbek</button>
+                <button class="btn btn-outline btn-sm" onclick="showToast('Til o\\'zgartirildi','success')">🇷🇺 Русский</button>
+                <button class="btn btn-outline btn-sm" onclick="showToast('Til o\\'zgartirildi','success')">🇬🇧 English</button>
+            </div>
+        </div>
+    </div>`;
 });
 
 /* ---- ADMIN PAGES ---- */
