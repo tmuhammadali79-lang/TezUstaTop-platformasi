@@ -2,6 +2,12 @@
    TezUstaTop Platform — Data & Helpers
    ======================================== */
 const AppData = {
+    registeredUsers: {
+        '901234567': 'client',
+        '931234567': 'master',
+        '941234567': 'client',
+        '991234567': 'master'
+    },
     currentUser: null,
     currentRole: null,
     isLoggedIn: false,

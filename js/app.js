@@ -147,7 +147,7 @@ window.doLogout = function() {
 
 window.doLogin = function(role) {
     // Master approval gate
-    if (role === 'master' && !window._masterApproved) {
+    if (role === 'master' && window._authMode === 'register' && !window._masterApproved) {
         window._authStep = 4; // Go to document upload
         renderLoginPage();
         return;
@@ -192,19 +192,19 @@ window.authGoToOtp = function() {
     const phone = phoneInput ? phoneInput.value.replace(/\s/g,'') : '';
     if (phone.length < 9) { showToast('Telefon raqamni to\'liq kiriting','error'); return; }
     
-    // Mock registered numbers database
-    const registeredPhones = ['901234567', '931234567', '941234567', '991234567'];
-    
-    if (window._authMode === 'register' && registeredPhones.includes(phone)) {
+    if (window._authMode === 'register' && AppData.registeredUsers[phone]) {
         window._authPhone = phone;
         window._authStep = 'already_registered';
         renderLoginPage();
         return;
     }
     
-    if (window._authMode === 'login' && !registeredPhones.includes(phone) && phone !== '901234567') {
-        showToast('Bunday raqam ro\'yxatdan o\'tmagan! Avval ro\'yxatdan o\'ting.', 'error');
-        return;
+    if (window._authMode === 'login') {
+        if (!AppData.registeredUsers[phone]) {
+            showToast('Bunday raqam ro\'yxatdan o\'tmagan! Avval ro\'yxatdan o\'ting.', 'error');
+            return;
+        }
+        window._selectedRole = AppData.registeredUsers[phone];
     }
 
     window._authPhone = phone;
@@ -241,14 +241,17 @@ window.authVerifyOtp = function() {
     setTimeout(() => {
         if (window._otpTimer) clearInterval(window._otpTimer);
         showToast('Telefon raqam tasdiqlandi! ✅', 'success');
-        if (window._authMode === 'register' && window._selectedRole === 'master') {
-            // Masters go to document upload ONLY if registering
-            window._authStep = 4;
-            setTimeout(() => renderLoginPage(), 400);
-        } else {
-            // Login bypasses document upload for existing masters
-            setTimeout(() => doLogin(window._selectedRole), 400);
+        if (window._authMode === 'register') {
+            AppData.registeredUsers[window._authPhone] = window._selectedRole;
+            if (window._selectedRole === 'master') {
+                // Masters go to document upload ONLY if registering
+                window._authStep = 4;
+                setTimeout(() => renderLoginPage(), 400);
+                return;
+            }
         }
+        // Login bypasses document upload for existing masters
+        setTimeout(() => doLogin(window._selectedRole), 400);
     }, 1500);
 };
 
@@ -324,8 +327,8 @@ function renderLoginPage() {
 
     const tabsHtml = `
         <div style="display:flex;margin-bottom:24px;border-bottom:2px solid var(--gray-200)">
-            <div style="flex:1;text-align:center;padding:12px;cursor:pointer;font-weight:600;transition:all 0.2s;${window._authMode==='login'?'border-bottom:2px solid var(--primary-600);color:var(--primary-600);margin-bottom:-2px':'color:var(--gray-500)'}" onclick="window._authMode='login';window._authStep=1;renderLoginPage()">Kirish</div>
-            <div style="flex:1;text-align:center;padding:12px;cursor:pointer;font-weight:600;transition:all 0.2s;${window._authMode==='register'?'border-bottom:2px solid var(--primary-600);color:var(--primary-600);margin-bottom:-2px':'color:var(--gray-500)'}" onclick="window._authMode='register';window._authStep=1;renderLoginPage()">Ro'yxatdan o'tish</div>
+            <div style="flex:1;text-align:center;padding:12px;cursor:pointer;font-weight:600;transition:all 0.2s;${window._authMode==='login'?'border-bottom:2px solid var(--primary-600);color:var(--primary-600);margin-bottom:-2px':'color:var(--gray-500)'}" onclick="window._authMode='login';window._authStep=2;window._selectedRole=null;renderLoginPage()">Kirish</div>
+            <div style="flex:1;text-align:center;padding:12px;cursor:pointer;font-weight:600;transition:all 0.2s;${window._authMode==='register'?'border-bottom:2px solid var(--primary-600);color:var(--primary-600);margin-bottom:-2px':'color:var(--gray-500)'}" onclick="window._authMode='register';window._authStep=1;window._selectedRole=null;renderLoginPage()">Ro'yxatdan o'tish</div>
         </div>
     `;
 
@@ -367,7 +370,7 @@ function renderLoginPage() {
             <div style="text-align:center;margin-bottom:8px">
                 <div style="width:80px;height:80px;border-radius:50%;background:var(--primary-50);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.5rem">\ud83d\udcf1</div>
                 <h1 style="font-size:1.75rem">Telefon raqamingiz</h1>
-                <p class="auth-subtitle">${roleName} sifatida ${window._authMode === 'login' ? 'tizimga kirish' : 'ro\'yxatdan o\'tish'} uchun telefon raqamingizni kiriting</p>
+                <p class="auth-subtitle">${window._authMode === 'login' ? 'Tizimga kirish uchun telefon raqamingizni kiriting' : (window._selectedRole === 'master' ? 'Usta sifatida tizimga kirish uchun telefon raqamingizni kiriting' : 'Mijoz sifatida tizimga kirish uchun telefon raqamingizni kiriting')}</p>
             </div>
             <div class="phone-input-group">
                 <div class="phone-prefix">
@@ -378,7 +381,7 @@ function renderLoginPage() {
             </div>
             <p style="font-size:0.75rem;color:var(--gray-500);margin:12px 0 20px;text-align:center">SMS orqali tasdiqlash kodi yuboriladi</p>
             <button class="btn btn-primary btn-lg btn-block" onclick="authGoToOtp()">\ud83d\udce9 SMS kod yuborish</button>
-            <button class="btn btn-ghost btn-block" onclick="window._authStep=1;renderLoginPage()" style="margin-top:8px;color:var(--gray-500)">\u2190 Orqaga qaytish</button>`;
+            ${window._authMode === 'register' ? `<button class="btn btn-ghost btn-block" onclick="window._authStep=1;renderLoginPage()" style="margin-top:8px;color:var(--gray-500)">\u2190 Orqaga qaytish</button>` : `<button class="btn btn-ghost btn-block" onclick="Router.navigate('')" style="margin-top:8px;color:var(--primary-600)">\u2190 Bosh sahifaga qaytish</button>`}`;
     } else if (step === 3) {
         bodyHtml = `
             <div style="text-align:center;margin-bottom:8px">
@@ -745,8 +748,8 @@ function renderMastersPage() {
 Router.register('', () => renderLandingPage());
 Router.register('services', () => renderServicesPage());
 Router.register('masters', () => renderMastersPage());
-Router.register('login', () => renderLoginPage());
-Router.register('register', () => renderLoginPage());
+Router.register('login', () => { window._authMode='login'; window._authStep=2; window._selectedRole=null; window._authPhone=''; renderLoginPage(); });
+Router.register('register', () => { window._authMode='register'; window._authStep=1; window._selectedRole=null; window._authPhone=''; renderLoginPage(); });
 
 window.showToast = showToast;
 window.renderNavbar = renderNavbar;
