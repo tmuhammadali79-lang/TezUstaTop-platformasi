@@ -96,12 +96,8 @@ function renderSidebar(role) {
         admin: [
             {l:'Boshqaruv',items:[
                 {icon:AppData.icons.dashboard,text:'Dashboard',route:'admin/home'},
-                {icon:AppData.icons.users,text:'Ustalarni tasdiqlash',route:'admin/verify',badge:'3'},
-                {icon:AppData.icons.creditCard,text:'Tranzaksiyalar',route:'admin/transactions'},
-                {icon:AppData.icons.alertCircle,text:'Nizolar',route:'admin/disputes',badge:'2'},
-            ]},
-            {l:'Tizim',items:[
-                {icon:AppData.icons.settings,text:'Sozlamalar',route:'admin/settings'},
+                {icon:AppData.icons.users,text:'Ustalarni boshqarish',route:'admin/masters',badge:String(AppData.pendingVerifications.length)},
+                {icon:AppData.icons.profile,text:'Mijozlarni boshqarish',route:'admin/clients'},
             ]},
         ],
     };
@@ -150,6 +146,12 @@ window.doLogout = function() {
 };
 
 window.doLogin = function(role) {
+    // Master approval gate
+    if (role === 'master' && !window._masterApproved) {
+        window._authStep = 4; // Go to document upload
+        renderLoginPage();
+        return;
+    }
     AppData.isLoggedIn = true;
     AppData.currentRole = role;
     const users = {
@@ -161,6 +163,9 @@ window.doLogin = function(role) {
     window._authStep = 1;
     window._selectedRole = null;
     window._authPhone = '';
+    window._masterApproved = false;
+    window._masterWorkPhotos = 0;
+    window._masterPassport = false;
     if (window._otpTimer) clearInterval(window._otpTimer);
     renderNavbar();
     Router.navigate(role === 'admin' ? 'admin/home' : `${role}/home`);
@@ -221,15 +226,19 @@ window.authVerifyOtp = function() {
     const inputs = document.querySelectorAll('.otp-input');
     let code = '';
     inputs.forEach(inp => code += inp.value);
-    if (code.length < 6) { showToast('6 xonali kodni to\'liq kiriting','error'); return; }
-    // Show loading state
+    if (code.length < 6) { showToast('6 xonali kodni toliq kiriting','error'); return; }
     const btn = document.getElementById('otp-verify-btn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner-sm"></div> Tekshirilmoqda...'; }
-    // Simulate verification delay
     setTimeout(() => {
         if (window._otpTimer) clearInterval(window._otpTimer);
         showToast('Telefon raqam tasdiqlandi! ✅', 'success');
-        setTimeout(() => doLogin(window._selectedRole), 400);
+        if (window._selectedRole === 'master') {
+            // Masters go to document upload
+            window._authStep = 4;
+            setTimeout(() => renderLoginPage(), 400);
+        } else {
+            setTimeout(() => doLogin(window._selectedRole), 400);
+        }
     }, 1500);
 };
 
@@ -275,68 +284,73 @@ function renderLoginPage() {
     hideSidebar();
     renderNavbar();
     const step = window._authStep || 1;
+    const isMaster = window._selectedRole === 'master';
     const roleName = {client:'Mijoz',master:'Usta',admin:'Admin'}[window._selectedRole] || '';
 
-    // Step indicators
-    const stepsHtml = `<div class="auth-steps">
-        <div class="auth-step ${step >= 1 ? 'active' : ''} ${step > 1 ? 'done' : ''}">
-            <div class="auth-step-dot">${step > 1 ? '✓' : '1'}</div>
-            <span>Rol</span>
-        </div>
-        <div class="auth-step-line ${step > 1 ? 'active' : ''}"></div>
-        <div class="auth-step ${step >= 2 ? 'active' : ''} ${step > 2 ? 'done' : ''}">
-            <div class="auth-step-dot">${step > 2 ? '✓' : '2'}</div>
-            <span>Telefon</span>
-        </div>
-        <div class="auth-step-line ${step > 2 ? 'active' : ''}"></div>
-        <div class="auth-step ${step >= 3 ? 'active' : ''}">
-            <div class="auth-step-dot">3</div>
-            <span>Tasdiqlash</span>
-        </div>
-    </div>`;
+    // Step indicators - 5 steps for master, 3 for others
+    let stepsHtml;
+    if (isMaster) {
+        const stepNames = ['Rol','Telefon','OTP','Hujjatlar','Kutish'];
+        stepsHtml = `<div class="auth-steps">${stepNames.map((name, i) => {
+            const n = i + 1;
+            return `${i > 0 ? `<div class="auth-step-line ${step > n-1 ? 'active' : ''}"></div>` : ''}
+            <div class="auth-step ${step >= n ? 'active' : ''} ${step > n ? 'done' : ''}">
+                <div class="auth-step-dot">${step > n ? '\u2713' : n}</div>
+                <span>${name}</span>
+            </div>`;
+        }).join('')}</div>`;
+    } else {
+        stepsHtml = `<div class="auth-steps">
+            <div class="auth-step ${step >= 1 ? 'active' : ''} ${step > 1 ? 'done' : ''}"><div class="auth-step-dot">${step > 1 ? '\u2713' : '1'}</div><span>Rol</span></div>
+            <div class="auth-step-line ${step > 1 ? 'active' : ''}"></div>
+            <div class="auth-step ${step >= 2 ? 'active' : ''} ${step > 2 ? 'done' : ''}"><div class="auth-step-dot">${step > 2 ? '\u2713' : '2'}</div><span>Telefon</span></div>
+            <div class="auth-step-line ${step > 2 ? 'active' : ''}"></div>
+            <div class="auth-step ${step >= 3 ? 'active' : ''}"><div class="auth-step-dot">3</div><span>Tasdiqlash</span></div>
+        </div>`;
+    }
 
     let bodyHtml = '';
 
     if (step === 1) {
         bodyHtml = `
-            <h1>👋 Xush kelibsiz!</h1>
+            <h1>\ud83d\udc4b Xush kelibsiz!</h1>
             <p class="auth-subtitle">Kim sifatida kirmoqchisiz?</p>
             <div class="role-cards">
                 <div class="role-card ${window._selectedRole==='client'?'selected':''}" onclick="this.parentElement.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));this.classList.add('selected');window._selectedRole='client'">
-                    <div class="role-icon" style="background:var(--primary-50);color:var(--primary-600)">👤</div>
+                    <div class="role-icon" style="background:var(--primary-50);color:var(--primary-600)">\ud83d\udc64</div>
                     <div><div class="role-title">Mijoz</div><div class="role-desc">Usta toping va xizmat buyurtma qiling</div></div>
                 </div>
                 <div class="role-card ${window._selectedRole==='master'?'selected':''}" onclick="this.parentElement.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));this.classList.add('selected');window._selectedRole='master'">
-                    <div class="role-icon" style="background:var(--accent-50);color:var(--accent-600)">🔧</div>
+                    <div class="role-icon" style="background:var(--accent-50);color:var(--accent-600)">\ud83d\udd27</div>
                     <div><div class="role-title">Usta</div><div class="role-desc">Buyurtmalar qabul qilib, daromad oling</div></div>
                 </div>
                 <div class="role-card ${window._selectedRole==='admin'?'selected':''}" onclick="this.parentElement.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));this.classList.add('selected');window._selectedRole='admin'">
-                    <div class="role-icon" style="background:var(--danger-50);color:var(--danger-600)">🛡️</div>
+                    <div class="role-icon" style="background:var(--danger-50);color:var(--danger-600)">\ud83d\udee1\ufe0f</div>
                     <div><div class="role-title">Admin</div><div class="role-desc">Tizimni boshqaring va nazorat qiling</div></div>
                 </div>
             </div>
-            <button class="btn btn-primary btn-lg btn-block" onclick="authGoToPhone()">Davom etish →</button>`;
+            <button class="btn btn-primary btn-lg btn-block" onclick="authGoToPhone()">Davom etish \u2192</button>`;
     } else if (step === 2) {
         bodyHtml = `
             <div style="text-align:center;margin-bottom:8px">
-                <div style="width:80px;height:80px;border-radius:50%;background:var(--primary-50);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.5rem">📱</div>
+                <div style="width:80px;height:80px;border-radius:50%;background:var(--primary-50);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.5rem">\ud83d\udcf1</div>
                 <h1 style="font-size:1.75rem">Telefon raqamingiz</h1>
                 <p class="auth-subtitle">${roleName} sifatida kirish uchun telefon raqamingizni kiriting</p>
             </div>
             <div class="phone-input-group">
                 <div class="phone-prefix">
-                    <span style="font-size:1.25rem">🇺🇿</span>
+                    <span style="font-size:1.25rem">\ud83c\uddfa\ud83c\uddff</span>
                     <span style="font-weight:700;color:var(--gray-800)">+998</span>
                 </div>
                 <input type="tel" id="auth-phone" class="form-input phone-number-input" placeholder="90 123 45 67" maxlength="12" oninput="formatPhoneInput(this)" autofocus>
             </div>
             <p style="font-size:0.75rem;color:var(--gray-500);margin:12px 0 20px;text-align:center">SMS orqali tasdiqlash kodi yuboriladi</p>
-            <button class="btn btn-primary btn-lg btn-block" onclick="authGoToOtp()">📩 SMS kod yuborish</button>
-            <button class="btn btn-ghost btn-block" onclick="window._authStep=1;renderLoginPage()" style="margin-top:8px;color:var(--gray-500)">← Orqaga qaytish</button>`;
+            <button class="btn btn-primary btn-lg btn-block" onclick="authGoToOtp()">\ud83d\udce9 SMS kod yuborish</button>
+            <button class="btn btn-ghost btn-block" onclick="window._authStep=1;renderLoginPage()" style="margin-top:8px;color:var(--gray-500)">\u2190 Orqaga qaytish</button>`;
     } else if (step === 3) {
         bodyHtml = `
             <div style="text-align:center;margin-bottom:8px">
-                <div style="width:80px;height:80px;border-radius:50%;background:var(--success-50);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.5rem">🔐</div>
+                <div style="width:80px;height:80px;border-radius:50%;background:var(--success-50);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.5rem">\ud83d\udd10</div>
                 <h1 style="font-size:1.75rem">Kodni kiriting</h1>
                 <p class="auth-subtitle">+998 ${window._authPhone} raqamiga yuborilgan 6 xonali kodni kiriting</p>
             </div>
@@ -344,7 +358,7 @@ function renderLoginPage() {
                 <input type="text" class="otp-input" maxlength="1" inputmode="numeric" oninput="handleOtpInput(this,0)" onkeydown="handleOtpKeydown(event,0)" onpaste="handleOtpPaste(event)">
                 <input type="text" class="otp-input" maxlength="1" inputmode="numeric" oninput="handleOtpInput(this,1)" onkeydown="handleOtpKeydown(event,1)">
                 <input type="text" class="otp-input" maxlength="1" inputmode="numeric" oninput="handleOtpInput(this,2)" onkeydown="handleOtpKeydown(event,2)">
-                <div class="otp-separator">—</div>
+                <div class="otp-separator">\u2014</div>
                 <input type="text" class="otp-input" maxlength="1" inputmode="numeric" oninput="handleOtpInput(this,3)" onkeydown="handleOtpKeydown(event,3)">
                 <input type="text" class="otp-input" maxlength="1" inputmode="numeric" oninput="handleOtpInput(this,4)" onkeydown="handleOtpKeydown(event,4)">
                 <input type="text" class="otp-input" maxlength="1" inputmode="numeric" oninput="handleOtpInput(this,5)" onkeydown="handleOtpKeydown(event,5)">
@@ -352,20 +366,144 @@ function renderLoginPage() {
             <div id="otp-countdown" style="text-align:center;margin:16px 0">
                 <span style="color:var(--gray-500)">Qayta yuborish: <strong style="color:var(--primary-600)">${window._otpSeconds}s</strong></span>
             </div>
-            <button id="otp-verify-btn" class="btn btn-primary btn-lg btn-block" onclick="authVerifyOtp()">✅ Tasdiqlash</button>
-            <button class="btn btn-ghost btn-block" onclick="window._authStep=2;if(window._otpTimer)clearInterval(window._otpTimer);renderLoginPage()" style="margin-top:8px;color:var(--gray-500)">← Raqamni o'zgartirish</button>`;
+            <button id="otp-verify-btn" class="btn btn-primary btn-lg btn-block" onclick="authVerifyOtp()">\u2705 Tasdiqlash</button>
+            <button class="btn btn-ghost btn-block" onclick="window._authStep=2;if(window._otpTimer)clearInterval(window._otpTimer);renderLoginPage()" style="margin-top:8px;color:var(--gray-500)">\u2190 Raqamni o'zgartirish</button>`;
+    } else if (step === 4) {
+        // Master document upload step
+        if (!window._masterWorkPhotos) window._masterWorkPhotos = 0;
+        if (!window._masterPassport) window._masterPassport = false;
+        const photosOk = window._masterWorkPhotos >= 3;
+        const passportOk = window._masterPassport;
+        const allOk = photosOk && passportOk;
+        bodyHtml = `
+            <div style="text-align:center;margin-bottom:16px">
+                <div style="width:80px;height:80px;border-radius:50%;background:var(--accent-50);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.5rem">\ud83d\udcc4</div>
+                <h1 style="font-size:1.75rem">Hujjatlarni yuklash</h1>
+                <p class="auth-subtitle">Usta sifatida tasdiqlash uchun quyidagi hujjatlarni yuklab bering</p>
+            </div>
+            <!-- Work photos upload -->
+            <div class="card" style="margin-bottom:16px;border:2px ${photosOk ? 'solid var(--success-400)' : 'dashed var(--gray-200)'}">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+                    <div style="width:48px;height:48px;border-radius:12px;background:${photosOk?'var(--success-50)':'var(--gray-50)'};display:flex;align-items:center;justify-content:center;font-size:1.5rem">${photosOk ? '\u2705' : '\ud83d\udcf8'}</div>
+                    <div style="flex:1">
+                        <div style="font-weight:700;font-size:0.9375rem">Ish rasmlari <span style="color:var(--danger-500)">*</span></div>
+                        <div style="font-size:0.75rem;color:var(--gray-500)">Oldin qilgan ishlaringizning rasmlari (kamida 3 ta)</div>
+                    </div>
+                    <span class="badge badge-${photosOk?'success':'warning'}">${window._masterWorkPhotos}/3</span>
+                </div>
+                <div id="work-photos-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+                    ${Array.from({length: window._masterWorkPhotos}, (_, i) => `<div style="width:80px;height:80px;border-radius:var(--radius-md);background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:1.5rem;position:relative">
+                        \ud83d\uddbc\ufe0f
+                        <div style="position:absolute;top:-4px;right:-4px;width:18px;height:18px;background:var(--success-500);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:white">\u2713</div>
+                    </div>`).join('')}
+                </div>
+                <label class="btn btn-outline btn-sm btn-block" style="cursor:pointer;position:relative">
+                    \ud83d\udcf7 Rasm yuklash
+                    <input type="file" accept="image/*" multiple style="position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer" onchange="window.handleWorkPhotos(this)">
+                </label>
+            </div>
+            <!-- Passport upload -->
+            <div class="card" style="margin-bottom:20px;border:2px ${passportOk ? 'solid var(--success-400)' : 'dashed var(--gray-200)'}">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+                    <div style="width:48px;height:48px;border-radius:12px;background:${passportOk?'var(--success-50)':'var(--gray-50)'};display:flex;align-items:center;justify-content:center;font-size:1.5rem">${passportOk ? '\u2705' : '\ud83e\udead'}</div>
+                    <div style="flex:1">
+                        <div style="font-weight:700;font-size:0.9375rem">Pasport nusxasi <span style="color:var(--danger-500)">*</span></div>
+                        <div style="font-size:0.75rem;color:var(--gray-500)">Shaxsingizni tasdiqlash uchun pasport surati</div>
+                    </div>
+                    ${passportOk ? '<span class="badge badge-success">Yuklangan</span>' : '<span class="badge badge-danger">Yuklanmagan</span>'}
+                </div>
+                ${passportOk ? `<div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--success-50);border-radius:var(--radius-sm)">
+                    <span style="font-size:1.25rem">\ud83d\udcc4</span>
+                    <span style="font-size:0.8125rem;font-weight:600;color:var(--success-700)">passport_nusxa.jpg - Yuklangan \u2705</span>
+                </div>` : `<label class="btn btn-outline btn-sm btn-block" style="cursor:pointer;position:relative">
+                    \ud83d\udcc1 Pasport suratini yuklash
+                    <input type="file" accept="image/*" style="position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer" onchange="window.handlePassport(this)">
+                </label>`}
+            </div>
+            ${!allOk ? '<p style="text-align:center;font-size:0.75rem;color:var(--danger-500);margin-bottom:12px">\u26a0\ufe0f Barcha hujjatlarni yuklash majburiy</p>' : ''}
+            <button class="btn btn-primary btn-lg btn-block ${allOk?'':'btn-disabled'}" ${allOk?'':'disabled'} onclick="window.submitMasterDocs()">\ud83d\udce8 Arizani yuborish</button>
+            <button class="btn btn-ghost btn-block" onclick="window._authStep=1;window._selectedRole=null;renderLoginPage()" style="margin-top:8px;color:var(--gray-500)">\u2190 Bekor qilish</button>`;
+    } else if (step === 5) {
+        // Waiting for admin approval
+        bodyHtml = `
+            <div style="text-align:center;padding:20px 0">
+                <div style="width:100px;height:100px;border-radius:50%;background:var(--warning-50);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:3rem">\u23f3</div>
+                <h1 style="font-size:1.75rem;margin-bottom:8px">Ariza yuborildi!</h1>
+                <p class="auth-subtitle" style="margin-bottom:24px">Arizangiz admin tomonidan ko'rib chiqilmoqda. Tasdiqlangandan so'ng tizimga kira olasiz.</p>
+                <div class="card" style="text-align:left;margin-bottom:20px">
+                    <div style="font-weight:600;font-size:0.875rem;color:var(--gray-700);margin-bottom:12px">\ud83d\udccb Ariza holati:</div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                        <span style="font-size:1.25rem">\u2705</span>
+                        <span style="font-size:0.875rem;color:var(--gray-700)">Telefon raqam tasdiqlandi</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                        <span style="font-size:1.25rem">\u2705</span>
+                        <span style="font-size:0.875rem;color:var(--gray-700)">Ish rasmlari yuklandi (${window._masterWorkPhotos} ta)</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                        <span style="font-size:1.25rem">\u2705</span>
+                        <span style="font-size:0.875rem;color:var(--gray-700)">Pasport nusxasi yuklandi</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;padding-top:8px;border-top:1px solid var(--gray-100)">
+                        <span style="font-size:1.25rem">\u23f3</span>
+                        <span style="font-size:0.875rem;font-weight:600;color:var(--warning-600)">Admin tasdiqlashi kutilmoqda...</span>
+                    </div>
+                </div>
+                <div style="background:var(--primary-50);padding:14px;border-radius:var(--radius-md);margin-bottom:20px">
+                    <p style="font-size:0.8125rem;color:var(--primary-700)">\ud83d\udcde Savollar bo'lsa: <strong>+998 71 200 00 01</strong> raqamiga qo'ng'iroq qiling</p>
+                </div>
+                <button class="btn btn-outline btn-lg btn-block" onclick="window._authStep=1;window._selectedRole=null;window._masterWorkPhotos=0;window._masterPassport=false;Router.navigate('')">\u2190 Bosh sahifaga qaytish</button>
+                <button class="btn btn-ghost btn-sm" onclick="window._masterApproved=true;doLogin('master')" style="margin-top:12px;color:var(--gray-400);font-size:0.75rem">[Demo: admin tasdiqladi]</button>
+            </div>`;
     }
 
     main().innerHTML = `<div class="auth-container page-enter">
-        <div class="auth-card">
+        <div class="auth-card" ${step === 4 ? 'style="max-width:520px"' : ''}>
             ${stepsHtml}
             ${bodyHtml}
-            <p style="text-align:center;margin-top:20px;color:var(--gray-500);font-size:0.8125rem">
-                <a onclick="window._authStep=1;Router.navigate('')" style="color:var(--primary-600);cursor:pointer;font-weight:600">← Bosh sahifaga qaytish</a>
-            </p>
+            ${step < 4 ? '<p style="text-align:center;margin-top:20px;color:var(--gray-500);font-size:0.8125rem"><a onclick="window._authStep=1;Router.navigate(\'\')" style="color:var(--primary-600);cursor:pointer;font-weight:600">\u2190 Bosh sahifaga qaytish</a></p>' : ''}
         </div>
     </div>`;
 }
+
+// Master document upload handlers
+window.handleWorkPhotos = function(input) {
+    const files = input.files;
+    if (files && files.length > 0) {
+        window._masterWorkPhotos = (window._masterWorkPhotos || 0) + files.length;
+        showToast(files.length + ' ta rasm yuklandi', 'success');
+        renderLoginPage();
+    }
+};
+window.handlePassport = function(input) {
+    if (input.files && input.files.length > 0) {
+        window._masterPassport = true;
+        showToast('Pasport nusxasi yuklandi', 'success');
+        renderLoginPage();
+    }
+};
+window.submitMasterDocs = function() {
+    if (window._masterWorkPhotos < 3 || !window._masterPassport) {
+        showToast('Barcha hujjatlarni yuklash majburiy!', 'error');
+        return;
+    }
+    // Add to pending verifications
+    const newId = AppData.pendingVerifications.length + 10;
+    AppData.pendingVerifications.push({
+        id: newId,
+        name: 'Yangi usta',
+        initials: 'YU',
+        specialty: 'Umumiy',
+        district: 'Toshkent',
+        phone: '+998 ' + window._authPhone,
+        bio: 'Yangi ariza yuborildi',
+        appliedDate: new Date().toISOString().split('T')[0],
+        status: 'pending'
+    });
+    showToast('Arizangiz muvaffaqiyatli yuborildi!', 'success');
+    window._authStep = 5;
+    renderLoginPage();
+};
 
 /* ---- LANDING PAGE ---- */
 function renderLandingPage() {
@@ -677,31 +815,66 @@ window.openNewOrder = function(catId) {
     const cat = AppData.categories.find(c => c.id === catId);
     const service = cat ? cat.subServices[0] : '';
     const masters = AppData.masters.filter(m => m.categoryId === catId);
+    window._newOrderDraft = { catId: catId, service: service, time: 'Hozir', masterId: null };
+    
+    window._setOrderTime = function(btn, time) {
+        btn.parentElement.querySelectorAll('.btn').forEach(b => b.className = 'btn btn-outline btn-sm');
+        btn.className = 'btn btn-primary btn-sm';
+        window._newOrderDraft.time = time;
+    };
+    window._setOrderMaster = function(card, mid) {
+        card.parentElement.querySelectorAll('.card').forEach(c => c.style.borderColor = 'var(--gray-200)');
+        card.style.borderColor = 'var(--primary-500)';
+        window._newOrderDraft.masterId = mid;
+    };
+    window.submitNewOrder = function() {
+        const desc = document.getElementById('new-order-desc').value.trim();
+        const addr = document.getElementById('new-order-address').value.trim();
+        if (!desc || !addr) { showToast('Tavsif va manzilni kiriting','error'); return; }
+        
+        const newId = 2000 + AppData.orders.length;
+        const o = {
+            id: newId,
+            clientId: 'u1', // Fixed for mock client
+            masterId: window._newOrderDraft.masterId,
+            categoryId: window._newOrderDraft.catId,
+            service: window._newOrderDraft.service,
+            description: desc,
+            status: window._newOrderDraft.masterId ? 'pending' : 'pending',
+            price: null, // to be agreed
+            address: addr,
+            scheduledTime: window._newOrderDraft.time,
+            createdAt: new Date().toISOString()
+        };
+        AppData.orders.unshift(o);
+        showToast('Buyurtma yaratildi! ✅', 'success');
+        setTimeout(() => Router.navigate('client/orders'), 1000);
+    };
+
     main().querySelector('.page-container').innerHTML = `
-        <div style="margin-bottom:24px"><button class="btn btn-ghost btn-sm" onclick="Router.navigate('client/services')">← Orqaga</button></div>
+        <div style="margin-bottom:24px"><button class="btn btn-ghost btn-sm" onclick="Router.navigate('client/services')">\u2190 Orqaga</button></div>
         <div class="card" style="max-width:700px">
             <h2 style="margin-bottom:4px">${cat ? cat.icon : ''} ${service}</h2>
             <p style="color:var(--gray-500);margin-bottom:24px">${cat ? cat.name : ''} xizmati</p>
-            <div class="form-group"><label class="form-label">Tavsif</label><textarea class="form-input form-textarea" placeholder="Muammoni batafsil yozing..."></textarea></div>
-            <div class="form-group"><label class="form-label">Manzil</label><input class="form-input" placeholder="Tuman, ko'cha, uy raqami"></div>
+            <div class="form-group"><label class="form-label">Tavsif <span style="color:red">*</span></label><textarea id="new-order-desc" class="form-input form-textarea" placeholder="Muammoni batafsil yozing..."></textarea></div>
+            <div class="form-group"><label class="form-label">Manzil <span style="color:red">*</span></label><input id="new-order-address" class="form-input" placeholder="Tuman, ko'cha, uy raqami"></div>
             <div class="form-group"><label class="form-label">Qachon kerak?</label>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
-                    <button class="btn btn-outline btn-sm" onclick="this.parentElement.querySelectorAll('.btn').forEach(b=>{b.className='btn btn-outline btn-sm'});this.className='btn btn-primary btn-sm'" style="flex:1">Hozir</button>
-                    <button class="btn btn-outline btn-sm" onclick="this.parentElement.querySelectorAll('.btn').forEach(b=>{b.className='btn btn-outline btn-sm'});this.className='btn btn-primary btn-sm'" style="flex:1">Bugun</button>
-                    <button class="btn btn-outline btn-sm" onclick="this.parentElement.querySelectorAll('.btn').forEach(b=>{b.className='btn btn-outline btn-sm'});this.className='btn btn-primary btn-sm'" style="flex:1">Ertaga</button>
-                    <button class="btn btn-outline btn-sm" onclick="this.parentElement.querySelectorAll('.btn').forEach(b=>{b.className='btn btn-outline btn-sm'});this.className='btn btn-primary btn-sm'" style="flex:1">Boshqa</button>
+                    <button class="btn btn-primary btn-sm" onclick="window._setOrderTime(this, 'Hozir')" style="flex:1">Hozir</button>
+                    <button class="btn btn-outline btn-sm" onclick="window._setOrderTime(this, 'Bugun 14:00')" style="flex:1">Bugun</button>
+                    <button class="btn btn-outline btn-sm" onclick="window._setOrderTime(this, 'Ertaga')" style="flex:1">Ertaga</button>
                 </div>
             </div>
             ${masters.length ? `<div class="form-group"><label class="form-label">Usta tanlash (ixtiyoriy)</label>
-                <div style="display:grid;gap:8px">${masters.map(m => `<div class="card" style="padding:12px;cursor:pointer;border:2px solid var(--gray-200)" onclick="this.parentElement.querySelectorAll('.card').forEach(c=>c.style.borderColor='var(--gray-200)');this.style.borderColor='var(--primary-500)'">
+                <div style="display:grid;gap:8px">${masters.map(m => `<div class="card" style="padding:12px;cursor:pointer;border:2px solid var(--gray-200);transition:0.2s" onclick="window._setOrderMaster(this, ${m.id})">
                     <div style="display:flex;align-items:center;gap:12px">
                         <div class="avatar avatar-sm">${m.initials}</div>
-                        <div style="flex:1"><div style="font-weight:600;font-size:0.875rem">${m.name} ${m.verified?'✅':''}</div><div style="font-size:0.75rem;color:var(--gray-500)">⭐${m.rating} • ${m.completedJobs} ish • ${m.distance}km</div></div>
+                        <div style="flex:1"><div style="font-weight:600;font-size:0.875rem">${m.name} ${m.verified?'\u2705':''}</div><div style="font-size:0.75rem;color:var(--gray-500)">\u2b50${m.rating} \u2022 ${m.completedJobs} ish \u2022 ${m.distance}km</div></div>
                         <div style="font-weight:700;color:var(--primary-600);font-size:0.875rem">${formatPrice(parseInt(m.price.replace(/ /g,'')))}</div>
                     </div>
                 </div>`).join('')}</div>
             </div>` : ''}
-            <button class="btn btn-primary btn-lg btn-block" onclick="showToast('Buyurtma yaratildi! ✅ Ustalar tez orada javob beradi','success');setTimeout(()=>Router.navigate('client/orders'),1500)">📩 Buyurtma yuborish</button>
+            <button class="btn btn-primary btn-lg btn-block" onclick="window.submitNewOrder()">\ud83d\udce9 Buyurtma yuborish</button>
         </div>`;
 };
 
@@ -1052,11 +1225,25 @@ Router.register('client/settings', () => {
 /* ---- MASTER PAGES ---- */
 Router.register('master/home', () => {
     renderNavbar(); renderSidebar('master');
-    const pendingOrders = AppData.orders.filter(o => o.status === 'pending');
-    const activeOrders = AppData.orders.filter(o => o.status === 'active');
+    const u = AppData.currentUser;
+    const masterData = AppData.masters.find(m => m.initials === u.initials) || AppData.masters[0];
+    
+    const pendingOrders = AppData.orders.filter(o => o.status === 'pending' && o.categoryId === masterData.categoryId && (!o.masterId || o.masterId === masterData.id));
+    const activeOrders = AppData.orders.filter(o => ['active','in_progress'].includes(o.status) && o.masterId === masterData.id);
+    
+    window.masterAcceptOrder = function(id) {
+        const o = AppData.orders.find(x => x.id === id);
+        if(o) {
+            o.status = 'active';
+            o.masterId = masterData.id;
+            showToast('Buyurtma qabul qilindi! ✅', 'success');
+            Router.navigate('master/home');
+        }
+    };
+
     main().innerHTML = `<div class="page-container page-enter">
         <div class="dash-welcome" style="background:linear-gradient(160deg,#14B8A6 0%,#06B6D4 50%,#0EA5E9 100%)">
-            <h2>Xush kelibsiz, ${AppData.currentUser.name} 🔧</h2>
+            <h2>Xush kelibsiz, ${u.name} 🔧</h2>
             <p>Bugungi statistika</p>
             <div style="display:flex;gap:16px;margin-top:16px;flex-wrap:wrap">
                 <div style="background:rgba(255,255,255,0.15);padding:12px 20px;border-radius:var(--radius-md);backdrop-filter:blur(8px);text-align:center;min-width:100px">
@@ -1068,7 +1255,7 @@ Router.register('master/home', () => {
                     <div style="font-size:0.75rem;opacity:0.85">Faol ish</div>
                 </div>
                 <div style="background:rgba(255,255,255,0.15);padding:12px 20px;border-radius:var(--radius-md);backdrop-filter:blur(8px);text-align:center;min-width:100px">
-                    <div style="font-family:var(--font-display);font-size:1.5rem;font-weight:800">${formatPrice(AppData.currentUser.balance).replace(" so'm",'')}</div>
+                    <div style="font-family:var(--font-display);font-size:1.5rem;font-weight:800">${formatPrice(u.balance).replace(" so'm",'')}</div>
                     <div style="font-size:0.75rem;opacity:0.85">Bugungi</div>
                 </div>
             </div>
@@ -1088,7 +1275,7 @@ Router.register('master/home', () => {
                     </div>
                     <div style="display:flex;gap:8px">
                         <button class="btn btn-outline btn-sm" style="flex:1">${AppData.icons.eye} Ko'rish</button>
-                        <button class="btn btn-primary btn-sm" style="flex:1" onclick="showToast('Taklif yuborildi!','success')">Taklif berish</button>
+                        <button class="btn btn-primary btn-sm" style="flex:1" onclick="window.masterAcceptOrder(${o.id})">Taklif berish</button>
                     </div>
                 </div>`;
             }).join('')}</div>
@@ -1101,21 +1288,26 @@ Router.register('master/home', () => {
                 </div>
             </div>`).join('')}
         </div>` : ''}
+        ${!pendingOrders.length && !activeOrders.length ? `<div style="text-align:center;padding:40px;color:var(--gray-500)">Hozircha buyurtmalar yo'q</div>` : ''}
     </div>`;
 });
 
 Router.register('master/orders', () => {
     renderNavbar(); renderSidebar('master');
+    const u = AppData.currentUser;
+    const masterData = AppData.masters.find(m => m.initials === u.initials) || AppData.masters[0];
+    const myOrders = AppData.orders.filter(o => o.masterId === masterData.id);
+
     main().innerHTML = `<div class="page-container page-enter">
-        <h2 style="margin-bottom:24px">Buyurtmalar</h2>
-        <div class="orders-grid">${AppData.orders.map(o => {
+        <h2 style="margin-bottom:24px">Mening buyurtmalarim</h2>
+        ${myOrders.length ? `<div class="orders-grid">${myOrders.map(o => {
             const cat = AppData.categories.find(c => c.id === o.categoryId);
             return `<div class="order-card">
                 <div class="order-card-header"><div class="order-card-service">${cat?cat.icon:''} ${o.service}</div><span class="badge badge-${getStatusClass(o.status)}">${getStatusText(o.status)}</span></div>
                 <div class="order-card-body">${o.description}</div>
-                <div class="order-card-footer"><span style="color:var(--gray-500)">${o.address}</span><span class="order-price">${formatPrice(o.price)}</span></div>
+                <div class="order-card-footer"><span style="color:var(--gray-500)">${o.address}</span><span class="order-price">${o.price ? formatPrice(o.price) : 'Kelishilgan'}</span></div>
             </div>`;
-        }).join('')}</div>
+        }).join('')}</div>` : `<div style="text-align:center;padding:40px;color:var(--gray-500)">Sizda hali ishlar yo'q</div>`}
     </div>`;
 });
 
@@ -1351,116 +1543,245 @@ Router.register('master/settings', () => {
 /* ---- ADMIN PAGES ---- */
 Router.register('admin/home', () => {
     renderNavbar(); renderSidebar('admin');
-    const s = AppData.adminStats;
+    const pendingCount = AppData.pendingVerifications.filter(v => v.status === 'pending').length;
+    const approvedCount = AppData.masters.length;
+    const blockedMasters = (AppData.blockedMasters || []).length;
+    const blockedClients = (AppData.blockedClients || []).length;
     main().innerHTML = `<div class="page-container page-enter">
         <div class="dash-welcome" style="background:var(--gradient-dark)">
-            <h2>Admin Panel 🛡️</h2>
-            <p>Tizim holati va statistika</p>
+            <h2>Admin Panel</h2>
+            <p>Ustalar va mijozlarni boshqarish</p>
         </div>
         <div class="stats-grid">
-            <div class="stat-card" style="background:linear-gradient(135deg,#6366F1,#8B5CF6)">
-                <div class="stat-icon">${AppData.icons.orders}</div>
-                <div class="stat-value">${s.totalOrders.toLocaleString()}</div>
-                <div class="stat-label">Jami buyurtmalar</div>
-            </div>
-            <div class="stat-card" style="background:linear-gradient(135deg,#14B8A6,#06B6D4)">
-                <div class="stat-icon">${AppData.icons.creditCard}</div>
-                <div class="stat-value">${(s.totalRevenue/1000000).toFixed(1)}M</div>
-                <div class="stat-label">Jami daromad</div>
-            </div>
             <div class="stat-card" style="background:linear-gradient(135deg,#F59E0B,#F97316)">
                 <div class="stat-icon">${AppData.icons.users}</div>
-                <div class="stat-value">${s.activeMasters}</div>
-                <div class="stat-label">Faol ustalar</div>
+                <div class="stat-value">${pendingCount}</div>
+                <div class="stat-label">Kutilayotgan ustalar</div>
             </div>
             <div class="stat-card" style="background:linear-gradient(135deg,#22C55E,#16A34A)">
-                <div class="stat-icon">${AppData.icons.trendUp}</div>
-                <div class="stat-value">${(s.commission/1000000).toFixed(1)}M</div>
-                <div class="stat-label">Komissiya</div>
+                <div class="stat-icon">${AppData.icons.check}</div>
+                <div class="stat-value">${approvedCount}</div>
+                <div class="stat-label">Tasdiqlangan ustalar</div>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg,#EF4444,#DC2626)">
+                <div class="stat-icon">${AppData.icons.x}</div>
+                <div class="stat-value">${blockedMasters}</div>
+                <div class="stat-label">Bloklangan ustalar</div>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg,#6366F1,#8B5CF6)">
+                <div class="stat-icon">${AppData.icons.profile}</div>
+                <div class="stat-value">${blockedClients}</div>
+                <div class="stat-label">Bloklangan mijozlar</div>
             </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px">
-            <div class="card"><h3 style="margin-bottom:16px">Oxirgi buyurtmalar</h3>
-                ${AppData.orders.slice(0,3).map(o => `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--gray-100)">
-                    <div><strong style="font-size:0.875rem">#${o.id} ${o.service}</strong><div style="font-size:0.75rem;color:var(--gray-500)">${o.address}</div></div>
-                    <span class="badge badge-${getStatusClass(o.status)}">${getStatusText(o.status)}</span>
-                </div>`).join('')}
-            </div>
-            <div class="card"><h3 style="margin-bottom:16px">Kutilayotgan tasdiqlar</h3>
-                ${AppData.pendingVerifications.slice(0,3).map(v => `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--gray-100)">
-                    <div><strong style="font-size:0.875rem">${v.name}</strong><div style="font-size:0.75rem;color:var(--gray-500)">${v.specialty} • ${v.district}</div></div>
+            <div class="card" style="cursor:pointer" onclick="Router.navigate('admin/masters')">
+                <h3 style="margin-bottom:16px">Kutilayotgan ustalar</h3>
+                ${AppData.pendingVerifications.filter(v=>v.status==='pending').slice(0,3).map(v => `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--gray-100)">
+                    <div><strong style="font-size:0.875rem">${v.name}</strong><div style="font-size:0.75rem;color:var(--gray-500)">${v.specialty} - ${v.district}</div></div>
                     <span class="badge badge-warning">Kutilmoqda</span>
+                </div>`).join('') || '<p style="color:var(--gray-400);text-align:center;padding:20px">Kutilayotgan ustalar yoq</p>'}
+                <button class="btn btn-outline btn-sm btn-block" style="margin-top:12px">Barchasini korish →</button>
+            </div>
+            <div class="card" style="cursor:pointer" onclick="Router.navigate('admin/clients')">
+                <h3 style="margin-bottom:16px">Faol mijozlar</h3>
+                ${[{name:'Abdulloh Rahimov',phone:'+998901234567'},{name:'Sardor Mirzayev',phone:'+998937778899'},{name:'Nodira Karimova',phone:'+998944445566'}].map(c => `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--gray-100)">
+                    <div><strong style="font-size:0.875rem">${c.name}</strong><div style="font-size:0.75rem;color:var(--gray-500)">${c.phone}</div></div>
+                    <span class="badge badge-success">Faol</span>
                 </div>`).join('')}
+                <button class="btn btn-outline btn-sm btn-block" style="margin-top:12px">Barchasini korish →</button>
             </div>
         </div>
     </div>`;
 });
 
-Router.register('admin/verify', () => {
+/* ---------- ADMIN: MASTERS MANAGEMENT ---------- */
+Router.register('admin/masters', () => {
     renderNavbar(); renderSidebar('admin');
+    if (!AppData.blockedMasters) AppData.blockedMasters = [];
+    if (!AppData.approvedMasters) AppData.approvedMasters = AppData.masters.map(m => ({...m}));
+    const tabs = [{id:'pending',t:'Kutilayotgan',icon:'⏳'},{id:'approved',t:'Tasdiqlangan',icon:'✅'},{id:'blocked',t:'Bloklangan',icon:'🚫'}];
     main().innerHTML = `<div class="page-container page-enter">
-        <h2 style="margin-bottom:24px">Ustalarni tasdiqlash</h2>
-        ${AppData.pendingVerifications.map(v => `<div class="verify-card">
-            <div class="verify-card-header">
-                <div style="display:flex;align-items:center;gap:12px">
-                    <div class="avatar">${v.name.split(' ').map(w=>w[0]).join('')}</div>
-                    <div><strong>${v.name}</strong><div style="font-size:0.8125rem;color:var(--gray-500)">${v.specialty} • ${v.district}</div></div>
+        <h2 style="margin-bottom:24px">Ustalarni boshqarish</h2>
+        <div class="tabs" style="margin-bottom:24px" id="master-tabs">
+            ${tabs.map((t,i) => `<div class="tab ${i===0?'active':''}" onclick="window.showMasterTab('${t.id}');this.parentElement.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));this.classList.add('active')">${t.icon} ${t.t}</div>`).join('')}
+        </div>
+        <div id="master-tab-content">${renderMasterTab('pending')}</div>
+    </div>`;
+});
+
+function renderMasterTab(tab) {
+    if (tab === 'pending') {
+        const pending = AppData.pendingVerifications.filter(v => v.status === 'pending');
+        if (!pending.length) return '<div style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px">✅</div><h3 style="color:var(--gray-700)">Kutilayotgan ustalar yoq</h3><p style="color:var(--gray-500)">Barcha arizalar korib chiqilgan</p></div>';
+        return pending.map(v => `<div class="card" style="margin-bottom:16px" id="master-card-${v.id}">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <div style="display:flex;align-items:center;gap:14px">
+                    <div class="avatar avatar-lg">${v.name.split(' ').map(w=>w[0]).join('')}</div>
+                    <div>
+                        <div style="font-weight:700;font-size:1.0625rem">${v.name}</div>
+                        <div style="font-size:0.8125rem;color:var(--gray-500)">${v.specialty} - ${v.district}</div>
+                        <div style="font-size:0.75rem;color:var(--gray-400)">${v.phone} - Ariza: ${v.appliedDate}</div>
+                    </div>
                 </div>
-                <span class="badge badge-warning">Kutilmoqda</span>
+                <span class="badge badge-warning" style="font-size:0.8125rem">Kutilmoqda</span>
             </div>
-            <div class="verify-card-body"><strong>Bio:</strong> ${v.bio}<br><strong>Telefon:</strong> ${v.phone}<br><strong>Ariza sanasi:</strong> ${v.appliedDate}</div>
-            <div class="verify-card-actions">
-                <button class="btn btn-success btn-sm" onclick="showToast('${v.name} tasdiqlandi!','success');this.closest('.verify-card').style.opacity='0.5'">${AppData.icons.check} Tasdiqlash</button>
-                <button class="btn btn-danger btn-sm" onclick="showToast('${v.name} rad etildi','error');this.closest('.verify-card').style.opacity='0.5'">${AppData.icons.x} Rad etish</button>
+            <div style="background:var(--gray-50);padding:14px;border-radius:var(--radius-md);margin-bottom:12px">
+                <div style="font-weight:600;font-size:0.8125rem;color:var(--gray-600);margin-bottom:4px">Bio:</div>
+                <div style="font-size:0.875rem;color:var(--gray-800)">${v.bio}</div>
             </div>
-        </div>`).join('')}
-    </div>`;
-});
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+                <div style="padding:12px;background:var(--gray-50);border-radius:var(--radius-md);text-align:center">
+                    <div style="font-size:1.5rem;margin-bottom:4px">📸</div>
+                    <div style="font-weight:600;font-size:0.8125rem">Ish rasmlari</div>
+                    <div style="font-size:0.75rem;color:var(--success-600)">3 ta rasm yuklangan</div>
+                </div>
+                <div style="padding:12px;background:var(--gray-50);border-radius:var(--radius-md);text-align:center">
+                    <div style="font-size:1.5rem;margin-bottom:4px">🪪</div>
+                    <div style="font-weight:600;font-size:0.8125rem">Pasport nusxasi</div>
+                    <div style="font-size:0.75rem;color:var(--success-600)">Yuklangan</div>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-success" style="flex:1" onclick="window.adminApproveMaster(${v.id})">✅ Tasdiqlash</button>
+                <button class="btn btn-danger" style="flex:1" onclick="window.adminRejectMaster(${v.id})">❌ Rad etish</button>
+            </div>
+        </div>`).join('');
+    } else if (tab === 'approved') {
+        const approved = AppData.approvedMasters || AppData.masters;
+        if (!approved.length) return '<div style="text-align:center;padding:40px"><p style="color:var(--gray-400)">Tasdiqlangan ustalar yoq</p></div>';
+        return `<div style="display:grid;gap:12px">${approved.map(m => `<div class="card" style="padding:16px;display:flex;align-items:center;gap:14px">
+            <div class="avatar">${m.initials || m.name.split(' ').map(w=>w[0]).join('')}</div>
+            <div style="flex:1">
+                <div style="font-weight:700">${m.name} ${m.verified?'✅':''}</div>
+                <div style="font-size:0.8125rem;color:var(--gray-500)">${m.specialty} - ${m.district || ''}</div>
+                <div style="font-size:0.75rem;color:var(--gray-400)">⭐${m.rating} - ${m.completedJobs} ta ish</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px"><span class="status-dot online"></span><span style="font-size:0.75rem;color:var(--success-600)">Faol</span></div>
+            <button class="btn btn-outline btn-sm" style="border-color:var(--danger-200);color:var(--danger-600)" onclick="window.adminBlockMaster(${m.id},'${m.name}')">🚫 Bloklash</button>
+        </div>`).join('')}</div>`;
+    } else {
+        const blocked = AppData.blockedMasters || [];
+        if (!blocked.length) return '<div style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px">👍</div><h3 style="color:var(--gray-700)">Bloklangan ustalar yoq</h3></div>';
+        return `<div style="display:grid;gap:12px">${blocked.map(m => `<div class="card" style="padding:16px;display:flex;align-items:center;gap:14px;opacity:0.7">
+            <div class="avatar" style="background:var(--gray-300)">${m.initials || m.name.split(' ').map(w=>w[0]).join('')}</div>
+            <div style="flex:1">
+                <div style="font-weight:700">${m.name}</div>
+                <div style="font-size:0.8125rem;color:var(--gray-500)">${m.specialty || ''}</div>
+            </div>
+            <span class="badge badge-danger">Bloklangan</span>
+            <button class="btn btn-outline btn-sm" onclick="window.adminUnblockMaster(${m.id},'${m.name}')">Blokdan chiqarish</button>
+        </div>`).join('')}</div>`;
+    }
+}
+window.showMasterTab = function(tab) {
+    document.getElementById('master-tab-content').innerHTML = renderMasterTab(tab);
+};
+window.adminApproveMaster = function(id) {
+    const v = AppData.pendingVerifications.find(x => x.id === id);
+    if (v) {
+        v.status = 'approved';
+        if (!AppData.approvedMasters) AppData.approvedMasters = [...AppData.masters];
+        AppData.approvedMasters.push({id: 100+id, name: v.name, initials: v.name.split(' ').map(w=>w[0]).join(''), specialty: v.specialty, district: v.district, rating: 0, reviewCount: 0, completedJobs: 0, verified: true, online: false, categoryId: 1, distance: 0, bio: v.bio, price: '0'});
+        showToast(v.name + ' tasdiqlandi!', 'success');
+        document.getElementById('master-tab-content').innerHTML = renderMasterTab('pending');
+    }
+};
+window.adminRejectMaster = function(id) {
+    const v = AppData.pendingVerifications.find(x => x.id === id);
+    if (v) {
+        v.status = 'rejected';
+        showToast(v.name + ' rad etildi', 'error');
+        document.getElementById('master-tab-content').innerHTML = renderMasterTab('pending');
+    }
+};
+window.adminBlockMaster = function(id, name) {
+    if (!AppData.blockedMasters) AppData.blockedMasters = [];
+    const idx = (AppData.approvedMasters||AppData.masters).findIndex(m => m.id === id);
+    if (idx > -1) {
+        const m = (AppData.approvedMasters||AppData.masters).splice(idx, 1)[0];
+        AppData.blockedMasters.push(m);
+        showToast(name + ' bloklandi', 'error');
+        document.getElementById('master-tab-content').innerHTML = renderMasterTab('approved');
+    }
+};
+window.adminUnblockMaster = function(id, name) {
+    const idx = AppData.blockedMasters.findIndex(m => m.id === id);
+    if (idx > -1) {
+        const m = AppData.blockedMasters.splice(idx, 1)[0];
+        if (!AppData.approvedMasters) AppData.approvedMasters = [...AppData.masters];
+        AppData.approvedMasters.push(m);
+        showToast(name + ' blokdan chiqarildi', 'success');
+        document.getElementById('master-tab-content').innerHTML = renderMasterTab('blocked');
+    }
+};
 
-Router.register('admin/transactions', () => {
+/* ---------- ADMIN: CLIENTS MANAGEMENT ---------- */
+Router.register('admin/clients', () => {
     renderNavbar(); renderSidebar('admin');
+    if (!AppData.blockedClients) AppData.blockedClients = [];
+    if (!AppData.activeClients) AppData.activeClients = [
+        {id:1,name:'Abdulloh Rahimov',phone:'+998 90 123 45 67',orders:5,since:'2026-01'},
+        {id:2,name:'Sardor Mirzayev',phone:'+998 93 777 88 99',orders:3,since:'2026-02'},
+        {id:3,name:'Nodira Karimova',phone:'+998 94 444 55 66',orders:7,since:'2025-12'},
+        {id:4,name:'Dilshod Rahimov',phone:'+998 91 222 33 44',orders:2,since:'2026-03'},
+    ];
+    const tabs = [{id:'active',t:'Faol',icon:'✅'},{id:'blocked',t:'Bloklangan',icon:'🚫'}];
     main().innerHTML = `<div class="page-container page-enter">
-        <h2 style="margin-bottom:24px">Tranzaksiyalar</h2>
-        <div class="card" style="overflow-x:auto">
-            <table class="data-table">
-                <thead><tr><th>ID</th><th>Xizmat</th><th>Usta</th><th>Summa</th><th>Komissiya</th><th>Holat</th><th>Sana</th></tr></thead>
-                <tbody>${AppData.transactions.map(t => `<tr>
-                    <td>#${t.orderId}</td>
-                    <td>${t.service}</td>
-                    <td>${t.masterName}</td>
-                    <td><strong>${formatPrice(t.total)}</strong></td>
-                    <td style="color:var(--success-600)">${formatPrice(t.commission)}</td>
-                    <td><span class="badge badge-${getStatusClass(t.status)}">${getStatusText(t.status)}</span></td>
-                    <td style="color:var(--gray-500)">${t.date}</td>
-                </tr>`).join('')}</tbody>
-            </table>
+        <h2 style="margin-bottom:24px">Mijozlarni boshqarish</h2>
+        <div class="tabs" style="margin-bottom:24px">
+            ${tabs.map((t,i) => `<div class="tab ${i===0?'active':''}" onclick="window.showClientTab('${t.id}');this.parentElement.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));this.classList.add('active')">${t.icon} ${t.t}</div>`).join('')}
         </div>
+        <div id="client-tab-content">${renderClientTab('active')}</div>
     </div>`;
 });
 
-Router.register('admin/disputes', () => {
-    renderNavbar(); renderSidebar('admin');
-    main().innerHTML = `<div class="page-container page-enter">
-        <h2 style="margin-bottom:24px">Nizolar</h2>
-        ${AppData.disputes.map(d => `<div class="dispute-card">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-                <div><strong>Buyurtma #${d.orderId}</strong><div style="font-size:0.8125rem;color:var(--gray-500)">${d.clientName} → ${d.masterName}</div></div>
-                <span class="badge badge-${getStatusClass(d.status)}">${getStatusText(d.status)}</span>
+function renderClientTab(tab) {
+    if (tab === 'active') {
+        const clients = AppData.activeClients || [];
+        return `<div style="display:grid;gap:12px">${clients.map(c => `<div class="card" style="padding:16px;display:flex;align-items:center;gap:14px">
+            <div class="avatar">${c.name.split(' ').map(w=>w[0]).join('')}</div>
+            <div style="flex:1">
+                <div style="font-weight:700">${c.name}</div>
+                <div style="font-size:0.8125rem;color:var(--gray-500)">${c.phone}</div>
+                <div style="font-size:0.75rem;color:var(--gray-400)">${c.orders} ta buyurtma - ${c.since} dan beri</div>
             </div>
-            <div class="dispute-reason">${d.reason}</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.875rem">
-                <span style="color:var(--gray-500)">${d.date} • ${formatPrice(d.amount)}</span>
-                ${d.status === 'open' ? `<div style="display:flex;gap:8px"><button class="btn btn-success btn-sm" onclick="showToast('Nizo hal qilindi','success')">Hal qilish</button></div>` : `<span style="color:var(--success-600)">${d.resolution || ''}</span>`}
-            </div>
-        </div>`).join('')}
-    </div>`;
-});
-
-Router.register('admin/settings', () => {
-    renderNavbar(); renderSidebar('admin');
-    main().innerHTML = `<div class="page-container page-enter"><h2 style="margin-bottom:24px">Sozlamalar</h2>
-        <div class="card" style="padding:40px;text-align:center"><div style="font-size:3rem;margin-bottom:16px">⚙️</div><h3 style="color:var(--gray-700)">Admin sozlamalari</h3><p style="color:var(--gray-500);margin-top:8px">Tez orada yangilanadi</p></div></div>`;
-});
+            <span class="badge badge-success">Faol</span>
+            <button class="btn btn-outline btn-sm" style="border-color:var(--danger-200);color:var(--danger-600)" onclick="window.adminBlockClient(${c.id},'${c.name}')">🚫 Bloklash</button>
+        </div>`).join('')}</div>`;
+    } else {
+        const blocked = AppData.blockedClients || [];
+        if (!blocked.length) return '<div style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px">👍</div><h3 style="color:var(--gray-700)">Bloklangan mijozlar yoq</h3></div>';
+        return `<div style="display:grid;gap:12px">${blocked.map(c => `<div class="card" style="padding:16px;display:flex;align-items:center;gap:14px;opacity:0.7">
+            <div class="avatar" style="background:var(--gray-300)">${c.name.split(' ').map(w=>w[0]).join('')}</div>
+            <div style="flex:1"><div style="font-weight:700">${c.name}</div><div style="font-size:0.8125rem;color:var(--gray-500)">${c.phone}</div></div>
+            <span class="badge badge-danger">Bloklangan</span>
+            <button class="btn btn-outline btn-sm" onclick="window.adminUnblockClient(${c.id},'${c.name}')">Blokdan chiqarish</button>
+        </div>`).join('')}</div>`;
+    }
+}
+window.showClientTab = function(tab) {
+    document.getElementById('client-tab-content').innerHTML = renderClientTab(tab);
+};
+window.adminBlockClient = function(id, name) {
+    if (!AppData.blockedClients) AppData.blockedClients = [];
+    const idx = AppData.activeClients.findIndex(c => c.id === id);
+    if (idx > -1) {
+        const c = AppData.activeClients.splice(idx, 1)[0];
+        AppData.blockedClients.push(c);
+        showToast(name + ' bloklandi', 'error');
+        document.getElementById('client-tab-content').innerHTML = renderClientTab('active');
+    }
+};
+window.adminUnblockClient = function(id, name) {
+    const idx = AppData.blockedClients.findIndex(c => c.id === id);
+    if (idx > -1) {
+        const c = AppData.blockedClients.splice(idx, 1)[0];
+        AppData.activeClients.push(c);
+        showToast(name + ' blokdan chiqarildi', 'success');
+        document.getElementById('client-tab-content').innerHTML = renderClientTab('blocked');
+    }
+};
 
 /* ---- INIT ---- */
 function init() {
