@@ -485,6 +485,53 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 700; line-hei
     font-weight: 700; color: var(--gray-900); }
 .role-card .role-desc { font-size: 0.8125rem; color: var(--gray-500); }
 
+/* Auth Steps Indicator */
+.auth-steps { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 32px; }
+.auth-step { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.auth-step-dot { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--gray-300);
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+    font-size: 0.875rem; color: var(--gray-400); background: white; transition: var(--transition-base); }
+.auth-step.active .auth-step-dot { border-color: var(--primary-500); color: var(--primary-600);
+    background: var(--primary-50); box-shadow: 0 0 0 4px rgba(99,102,241,0.1); }
+.auth-step.done .auth-step-dot { border-color: var(--success-500); background: var(--success-500);
+    color: white; }
+.auth-step span { font-size: 0.6875rem; font-weight: 600; color: var(--gray-400); }
+.auth-step.active span { color: var(--primary-600); }
+.auth-step.done span { color: var(--success-600); }
+.auth-step-line { width: 60px; height: 2px; background: var(--gray-200);
+    margin: 0 8px; margin-bottom: 20px; transition: var(--transition-base); }
+.auth-step-line.active { background: var(--primary-400); }
+
+/* Phone Input Group */
+.phone-input-group { display: flex; align-items: stretch; border: 2px solid var(--gray-200);
+    border-radius: var(--radius-lg); overflow: hidden; transition: var(--transition-fast);
+    background: white; }
+.phone-input-group:focus-within { border-color: var(--primary-400);
+    box-shadow: 0 0 0 4px rgba(99,102,241,0.1); }
+.phone-prefix { display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+    background: var(--gray-50); border-right: 1px solid var(--gray-200); flex-shrink: 0; }
+.phone-number-input { border: none !important; border-radius: 0 !important; padding: 14px 16px !important;
+    font-size: 1.125rem !important; font-weight: 600; letter-spacing: 1px;
+    min-height: 56px !important; box-shadow: none !important; }
+.phone-number-input:focus { box-shadow: none !important; }
+
+/* OTP Input */
+.otp-container { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px 0; }
+.otp-input { width: 52px; height: 64px; text-align: center; font-size: 1.5rem; font-weight: 700;
+    border: 2px solid var(--gray-200); border-radius: var(--radius-md); background: white;
+    color: var(--gray-900); outline: none; transition: var(--transition-fast);
+    font-family: var(--font-display); caret-color: var(--primary-500); }
+.otp-input:focus { border-color: var(--primary-500); box-shadow: 0 0 0 4px rgba(99,102,241,0.1);
+    transform: scale(1.05); }
+.otp-input:not(:placeholder-shown) { border-color: var(--primary-300); background: var(--primary-50); }
+.otp-separator { font-size: 1.25rem; color: var(--gray-400); padding: 0 4px; font-weight: 700; }
+
+/* Spinner */
+.spinner-sm { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white; border-radius: 50%; display: inline-block;
+    animation: spin 0.6s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* Status dot */
 .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
 .status-dot.online { background: var(--success-400); }

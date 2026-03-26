@@ -131,10 +131,19 @@ function hideSidebar() {
 }
 
 /* ---- AUTH ---- */
+window._authStep = 1;
+window._selectedRole = null;
+window._authPhone = '';
+window._otpTimer = null;
+window._otpSeconds = 0;
+
 window.doLogout = function() {
     AppData.isLoggedIn = false;
     AppData.currentUser = null;
     AppData.currentRole = null;
+    window._authStep = 1;
+    window._selectedRole = null;
+    window._authPhone = '';
     hideSidebar();
     renderNavbar();
     Router.navigate('');
@@ -149,35 +158,210 @@ window.doLogin = function(role) {
         admin: {name:'Admin',initials:'AD',balance:0},
     };
     AppData.currentUser = users[role];
+    window._authStep = 1;
+    window._selectedRole = null;
+    window._authPhone = '';
+    if (window._otpTimer) clearInterval(window._otpTimer);
     renderNavbar();
     Router.navigate(role === 'admin' ? 'admin/home' : `${role}/home`);
     showToast('Tizimga muvaffaqiyatli kirdingiz!', 'success');
 };
 
+window.authGoToPhone = function() {
+    if (!window._selectedRole) { showToast('Rolni tanlang','error'); return; }
+    window._authStep = 2;
+    renderLoginPage();
+};
+
+window.authGoToOtp = function() {
+    const phoneInput = document.getElementById('auth-phone');
+    const phone = phoneInput ? phoneInput.value.replace(/\s/g,'') : '';
+    if (phone.length < 9) { showToast('Telefon raqamni to\'liq kiriting','error'); return; }
+    window._authPhone = phone;
+    window._authStep = 3;
+    window._otpSeconds = 60;
+    renderLoginPage();
+    // Start countdown
+    if (window._otpTimer) clearInterval(window._otpTimer);
+    window._otpTimer = setInterval(() => {
+        window._otpSeconds--;
+        const el = document.getElementById('otp-countdown');
+        if (el) {
+            if (window._otpSeconds > 0) {
+                el.innerHTML = `<span style="color:var(--gray-500)">Qayta yuborish: <strong style="color:var(--primary-600)">${window._otpSeconds}s</strong></span>`;
+            } else {
+                el.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="window.authResendOtp()" style="color:var(--primary-600);font-weight:600">📩 Kodni qayta yuborish</button>`;
+                clearInterval(window._otpTimer);
+            }
+        }
+    }, 1000);
+    // Auto-focus first OTP input
+    setTimeout(() => { const f = document.querySelector('.otp-input'); if(f) f.focus(); }, 100);
+};
+
+window.authResendOtp = function() {
+    window._otpSeconds = 60;
+    showToast('Yangi SMS kod yuborildi!', 'success');
+    if (window._otpTimer) clearInterval(window._otpTimer);
+    window._otpTimer = setInterval(() => {
+        window._otpSeconds--;
+        const el = document.getElementById('otp-countdown');
+        if (el) {
+            if (window._otpSeconds > 0) {
+                el.innerHTML = `<span style="color:var(--gray-500)">Qayta yuborish: <strong style="color:var(--primary-600)">${window._otpSeconds}s</strong></span>`;
+            } else {
+                el.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="window.authResendOtp()" style="color:var(--primary-600);font-weight:600">📩 Kodni qayta yuborish</button>`;
+                clearInterval(window._otpTimer);
+            }
+        }
+    }, 1000);
+};
+
+window.authVerifyOtp = function() {
+    const inputs = document.querySelectorAll('.otp-input');
+    let code = '';
+    inputs.forEach(inp => code += inp.value);
+    if (code.length < 6) { showToast('6 xonali kodni to\'liq kiriting','error'); return; }
+    // Show loading state
+    const btn = document.getElementById('otp-verify-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner-sm"></div> Tekshirilmoqda...'; }
+    // Simulate verification delay
+    setTimeout(() => {
+        if (window._otpTimer) clearInterval(window._otpTimer);
+        showToast('Telefon raqam tasdiqlandi! ✅', 'success');
+        setTimeout(() => doLogin(window._selectedRole), 400);
+    }, 1500);
+};
+
+window.handleOtpInput = function(el, index) {
+    el.value = el.value.replace(/[^0-9]/g, '');
+    if (el.value.length === 1 && index < 5) {
+        const next = el.nextElementSibling;
+        if (next) next.focus();
+    }
+    // Check if all filled
+    const inputs = document.querySelectorAll('.otp-input');
+    let allFilled = true;
+    inputs.forEach(inp => { if(!inp.value) allFilled = false; });
+    if (allFilled) {
+        setTimeout(() => window.authVerifyOtp(), 200);
+    }
+};
+
+window.handleOtpKeydown = function(e, index) {
+    if (e.key === 'Backspace' && !e.target.value && index > 0) {
+        const prev = e.target.previousElementSibling;
+        if (prev) { prev.focus(); prev.value = ''; }
+    }
+};
+
+window.handleOtpPaste = function(e) {
+    e.preventDefault();
+    const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g,'').slice(0,6);
+    const inputs = document.querySelectorAll('.otp-input');
+    paste.split('').forEach((ch, i) => { if(inputs[i]) inputs[i].value = ch; });
+    if (paste.length === 6) setTimeout(() => window.authVerifyOtp(), 200);
+};
+
+window.formatPhoneInput = function(el) {
+    let v = el.value.replace(/[^0-9]/g, '').slice(0, 9);
+    if (v.length > 2) v = v.slice(0,2) + ' ' + v.slice(2);
+    if (v.length > 6) v = v.slice(0,6) + ' ' + v.slice(6);
+    if (v.length > 9) v = v.slice(0,9) + ' ' + v.slice(9);
+    el.value = v;
+};
+
 function renderLoginPage() {
     hideSidebar();
     renderNavbar();
-    main().innerHTML = `<div class="auth-container page-enter">
-        <div class="auth-card">
+    const step = window._authStep || 1;
+    const roleName = {client:'Mijoz',master:'Usta',admin:'Admin'}[window._selectedRole] || '';
+
+    // Step indicators
+    const stepsHtml = `<div class="auth-steps">
+        <div class="auth-step ${step >= 1 ? 'active' : ''} ${step > 1 ? 'done' : ''}">
+            <div class="auth-step-dot">${step > 1 ? '✓' : '1'}</div>
+            <span>Rol</span>
+        </div>
+        <div class="auth-step-line ${step > 1 ? 'active' : ''}"></div>
+        <div class="auth-step ${step >= 2 ? 'active' : ''} ${step > 2 ? 'done' : ''}">
+            <div class="auth-step-dot">${step > 2 ? '✓' : '2'}</div>
+            <span>Telefon</span>
+        </div>
+        <div class="auth-step-line ${step > 2 ? 'active' : ''}"></div>
+        <div class="auth-step ${step >= 3 ? 'active' : ''}">
+            <div class="auth-step-dot">3</div>
+            <span>Tasdiqlash</span>
+        </div>
+    </div>`;
+
+    let bodyHtml = '';
+
+    if (step === 1) {
+        bodyHtml = `
             <h1>👋 Xush kelibsiz!</h1>
             <p class="auth-subtitle">Kim sifatida kirmoqchisiz?</p>
             <div class="role-cards">
-                <div class="role-card" onclick="this.parentElement.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));this.classList.add('selected');window._selectedRole='client'">
+                <div class="role-card ${window._selectedRole==='client'?'selected':''}" onclick="this.parentElement.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));this.classList.add('selected');window._selectedRole='client'">
                     <div class="role-icon" style="background:var(--primary-50);color:var(--primary-600)">👤</div>
                     <div><div class="role-title">Mijoz</div><div class="role-desc">Usta toping va xizmat buyurtma qiling</div></div>
                 </div>
-                <div class="role-card" onclick="this.parentElement.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));this.classList.add('selected');window._selectedRole='master'">
+                <div class="role-card ${window._selectedRole==='master'?'selected':''}" onclick="this.parentElement.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));this.classList.add('selected');window._selectedRole='master'">
                     <div class="role-icon" style="background:var(--accent-50);color:var(--accent-600)">🔧</div>
                     <div><div class="role-title">Usta</div><div class="role-desc">Buyurtmalar qabul qilib, daromad oling</div></div>
                 </div>
-                <div class="role-card" onclick="this.parentElement.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));this.classList.add('selected');window._selectedRole='admin'">
+                <div class="role-card ${window._selectedRole==='admin'?'selected':''}" onclick="this.parentElement.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));this.classList.add('selected');window._selectedRole='admin'">
                     <div class="role-icon" style="background:var(--danger-50);color:var(--danger-600)">🛡️</div>
                     <div><div class="role-title">Admin</div><div class="role-desc">Tizimni boshqaring va nazorat qiling</div></div>
                 </div>
             </div>
-            <button class="btn btn-primary btn-lg btn-block" onclick="if(window._selectedRole)doLogin(window._selectedRole);else showToast('Rolni tanlang','error')">Davom etish</button>
+            <button class="btn btn-primary btn-lg btn-block" onclick="authGoToPhone()">Davom etish →</button>`;
+    } else if (step === 2) {
+        bodyHtml = `
+            <div style="text-align:center;margin-bottom:8px">
+                <div style="width:80px;height:80px;border-radius:50%;background:var(--primary-50);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.5rem">📱</div>
+                <h1 style="font-size:1.75rem">Telefon raqamingiz</h1>
+                <p class="auth-subtitle">${roleName} sifatida kirish uchun telefon raqamingizni kiriting</p>
+            </div>
+            <div class="phone-input-group">
+                <div class="phone-prefix">
+                    <span style="font-size:1.25rem">🇺🇿</span>
+                    <span style="font-weight:700;color:var(--gray-800)">+998</span>
+                </div>
+                <input type="tel" id="auth-phone" class="form-input phone-number-input" placeholder="90 123 45 67" maxlength="12" oninput="formatPhoneInput(this)" autofocus>
+            </div>
+            <p style="font-size:0.75rem;color:var(--gray-500);margin:12px 0 20px;text-align:center">SMS orqali tasdiqlash kodi yuboriladi</p>
+            <button class="btn btn-primary btn-lg btn-block" onclick="authGoToOtp()">📩 SMS kod yuborish</button>
+            <button class="btn btn-ghost btn-block" onclick="window._authStep=1;renderLoginPage()" style="margin-top:8px;color:var(--gray-500)">← Orqaga qaytish</button>`;
+    } else if (step === 3) {
+        bodyHtml = `
+            <div style="text-align:center;margin-bottom:8px">
+                <div style="width:80px;height:80px;border-radius:50%;background:var(--success-50);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.5rem">🔐</div>
+                <h1 style="font-size:1.75rem">Kodni kiriting</h1>
+                <p class="auth-subtitle">+998 ${window._authPhone} raqamiga yuborilgan 6 xonali kodni kiriting</p>
+            </div>
+            <div class="otp-container">
+                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" oninput="handleOtpInput(this,0)" onkeydown="handleOtpKeydown(event,0)" onpaste="handleOtpPaste(event)">
+                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" oninput="handleOtpInput(this,1)" onkeydown="handleOtpKeydown(event,1)">
+                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" oninput="handleOtpInput(this,2)" onkeydown="handleOtpKeydown(event,2)">
+                <div class="otp-separator">—</div>
+                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" oninput="handleOtpInput(this,3)" onkeydown="handleOtpKeydown(event,3)">
+                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" oninput="handleOtpInput(this,4)" onkeydown="handleOtpKeydown(event,4)">
+                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" oninput="handleOtpInput(this,5)" onkeydown="handleOtpKeydown(event,5)">
+            </div>
+            <div id="otp-countdown" style="text-align:center;margin:16px 0">
+                <span style="color:var(--gray-500)">Qayta yuborish: <strong style="color:var(--primary-600)">${window._otpSeconds}s</strong></span>
+            </div>
+            <button id="otp-verify-btn" class="btn btn-primary btn-lg btn-block" onclick="authVerifyOtp()">✅ Tasdiqlash</button>
+            <button class="btn btn-ghost btn-block" onclick="window._authStep=2;if(window._otpTimer)clearInterval(window._otpTimer);renderLoginPage()" style="margin-top:8px;color:var(--gray-500)">← Raqamni o'zgartirish</button>`;
+    }
+
+    main().innerHTML = `<div class="auth-container page-enter">
+        <div class="auth-card">
+            ${stepsHtml}
+            ${bodyHtml}
             <p style="text-align:center;margin-top:20px;color:var(--gray-500);font-size:0.8125rem">
-                <a onclick="Router.navigate('')" style="color:var(--primary-600);cursor:pointer;font-weight:600">← Bosh sahifaga qaytish</a>
+                <a onclick="window._authStep=1;Router.navigate('')" style="color:var(--primary-600);cursor:pointer;font-weight:600">← Bosh sahifaga qaytish</a>
             </p>
         </div>
     </div>`;
