@@ -1010,7 +1010,7 @@ window.showOrderDetail = function(id) {
             <div style="color:var(--gray-800)">${o.description}</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-            <div class="card" style="padding:14px;text-align:center"><div style="font-size:0.75rem;color:var(--gray-500)">Narx</div><div style="font-weight:700;color:var(--primary-700);font-size:1.125rem">${formatPrice(o.price)}</div></div>
+            <div class="card" style="padding:14px;text-align:center"><div style="font-size:0.75rem;color:var(--gray-500)">Narx</div><div style="font-weight:700;color:var(--primary-700);font-size:1.125rem">${o.status === 'price_proposed' ? formatPrice(o.proposedPrice) : (o.price ? formatPrice(o.price) : 'Kelishiladi')}</div></div>
             <div class="card" style="padding:14px;text-align:center"><div style="font-size:0.75rem;color:var(--gray-500)">Vaqt</div><div style="font-weight:700;color:var(--gray-800)">${o.scheduledTime}</div></div>
         </div>
         <div class="card" style="padding:14px;margin-bottom:16px"><div style="font-size:0.75rem;color:var(--gray-500);margin-bottom:4px">📍 Manzil</div><div style="font-weight:600">${o.address}</div></div>
@@ -1027,6 +1027,10 @@ window.showOrderDetail = function(id) {
             <button class="btn btn-primary btn-sm" style="flex:1" onclick="showToast('Usta bilan chat ochildi','success');this.closest('.modal-overlay').remove()">💬 Yozish</button>` : ''}
             ${o.status==='completed'&&!o.rating ? `<button class="btn btn-primary btn-block" onclick="showToast('Baho berildi ⭐','success');this.closest('.modal-overlay').remove()">⭐ Baho berish</button>` : ''}
             ${o.status==='pending' ? `<button class="btn btn-danger btn-sm" style="flex:1" onclick="showToast('Buyurtma bekor qilindi','error');this.closest('.modal-overlay').remove()">Bekor qilish</button>` : ''}
+            ${o.status==='price_proposed' && AppData.currentRole === 'client' ? `
+                <button class="btn btn-primary btn-sm" style="flex:1" onclick="window.clientAcceptPrice(${o.id});this.closest('.modal-overlay').remove()">Qabul qilish</button>
+                <button class="btn btn-outline btn-sm" style="flex:1;color:var(--danger-600);border-color:var(--danger-600)" onclick="window.clientRejectPrice(${o.id});this.closest('.modal-overlay').remove()">Rad qilish</button>
+            ` : ''}
         </div>
     </div>`;
     document.body.appendChild(overlay);

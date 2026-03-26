@@ -109,11 +109,11 @@ function formatPrice(price) {
     return Math.abs(price).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' so\'m';
 }
 function getStatusText(s) {
-    const m = { pending:'Kutilmoqda', accepted:'Qabul qilindi', active:'Jarayonda', in_progress:'Jarayonda', completed:'Bajarildi', cancelled:'Bekor qilindi', held:'Muzlatilgan', hold:'Muzlatilgan', open:'Ochiq', resolved:'Hal qilindi', approved:'Tasdiqlangan', rejected:'Rad etilgan', payout:'To\'langan', refund:'Qaytarilgan' };
+    const m = { pending:'Kutilmoqda', price_proposed:'Taklif qilindi', accepted:'Qabul qilindi', active:'Jarayonda', in_progress:'Jarayonda', completed:'Bajarildi', cancelled:'Bekor qilindi', held:'Muzlatilgan', hold:'Muzlatilgan', open:'Ochiq', resolved:'Hal qilindi', approved:'Tasdiqlangan', rejected:'Rad etilgan', payout:'To\'langan', refund:'Qaytarilgan' };
     return m[s] || s;
 }
 function getStatusClass(s) {
-    const m = { pending:'warning', accepted:'primary', active:'accent', in_progress:'accent', completed:'success', cancelled:'danger', held:'warning', hold:'warning', open:'danger', resolved:'success', approved:'success', rejected:'danger', payout:'success', refund:'primary' };
+    const m = { pending:'warning', price_proposed:'primary', accepted:'primary', active:'accent', in_progress:'accent', completed:'success', cancelled:'danger', held:'warning', hold:'warning', open:'danger', resolved:'success', approved:'success', rejected:'danger', payout:'success', refund:'primary' };
     return m[s] || 'gray';
 }
 function generateStars(rating) {
