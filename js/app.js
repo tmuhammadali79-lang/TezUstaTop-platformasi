@@ -638,49 +638,33 @@ Router.register('client/services', () => {
                 <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--gray-400)">${AppData.icons.search}</span>
             </div>
         </div>
-        <div id="services-list">
-            ${AppData.categories.map(c => `
-                <div class="card" style="margin-bottom:16px;overflow:hidden" id="cat-${c.id}">
-                    <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="window.toggleCategory(${c.id})">
-                        <div style="display:flex;align-items:center;gap:16px">
-                            <div class="category-icon" style="background:${c.bgColor};width:56px;height:56px;font-size:1.75rem">${c.icon}</div>
-                            <div>
-                                <div style="font-weight:700;color:var(--gray-900);font-size:1.0625rem">${c.name}</div>
-                                <div style="font-size:0.8125rem;color:var(--gray-500)">${c.subServices.length} xizmat mavjud</div>
-                            </div>
-                        </div>
-                        <span id="cat-arrow-${c.id}" style="transition:var(--transition-fast);color:var(--gray-400)">${AppData.icons.arrowRight}</span>
+        <div class="services-direct-grid" id="services-list">
+            ${AppData.categories.map(c => {
+                const svc = c.subServices[0];
+                const master = AppData.masters.find(m => m.categoryId === c.id);
+                const masterCount = AppData.masters.filter(m => m.categoryId === c.id).length;
+                return `<div class="card service-direct-card" id="cat-${c.id}" onclick="window.openNewOrder('${svc}',${c.id})" style="cursor:pointer;transition:var(--transition-base);overflow:hidden">
+                    <div style="background:${c.bgColor};padding:24px;text-align:center;margin:-20px -20px 16px">
+                        <div style="font-size:2.5rem;margin-bottom:8px">${c.icon}</div>
+                        <div style="font-family:var(--font-display);font-weight:700;font-size:1.125rem;color:var(--gray-900)">${c.name}</div>
                     </div>
-                    <div id="cat-services-${c.id}" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-100)">
-                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
-                            ${c.subServices.map(s => `<div class="card" style="padding:14px;cursor:pointer;border:1px solid var(--gray-100)" onclick="window.openNewOrder('${s}',${c.id})" onmouseover="this.style.borderColor='var(--primary-300)'" onmouseout="this.style.borderColor='var(--gray-100)'">
-                                <div style="font-weight:600;font-size:0.875rem;color:var(--gray-800)">${s}</div>
-                                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
-                                    <span style="font-size:0.75rem;color:var(--gray-500)">${AppData.masters.filter(m=>m.categoryId===c.id).length} ta usta</span>
-                                    <span style="font-size:0.75rem;font-weight:600;color:var(--primary-600)">Buyurtma →</span>
-                                </div>
-                            </div>`).join('')}
+                    <div style="font-weight:600;font-size:0.9375rem;color:var(--gray-800);margin-bottom:8px">${svc}</div>
+                    ${master ? `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--gray-50);border-radius:var(--radius-sm);margin-bottom:12px">
+                        <div class="avatar avatar-sm">${master.initials}</div>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-weight:600;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${master.name} ${master.verified?'✅':''}</div>
+                            <div style="font-size:0.6875rem;color:var(--gray-500)">⭐${master.rating} • ${master.completedJobs} ish</div>
                         </div>
-                        <div style="margin-top:16px"><div style="font-weight:600;font-size:0.875rem;color:var(--gray-700);margin-bottom:12px">Bu sohada ustalar:</div>
-                            <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px">
-                                ${AppData.masters.filter(m=>m.categoryId===c.id).map(m => `<div style="min-width:200px;padding:14px;background:var(--gray-50);border-radius:var(--radius-md);display:flex;align-items:center;gap:12px">
-                                    <div class="avatar avatar-sm">${m.initials}</div>
-                                    <div><div style="font-weight:600;font-size:0.8125rem">${m.name}</div><div style="font-size:0.75rem;color:var(--gray-500)">⭐${m.rating} • ${m.completedJobs} ish</div></div>
-                                </div>`).join('')}
-                            </div>
-                        </div>
+                    </div>` : ''}
+                    <div style="display:flex;align-items:center;justify-content:space-between">
+                        <span style="font-size:0.75rem;color:var(--gray-500)">${masterCount} ta usta</span>
+                        <span class="badge badge-primary" style="font-size:0.6875rem">Buyurtma berish →</span>
                     </div>
-                </div>
-            `).join('')}
+                </div>`;
+            }).join('')}
         </div>
     </div>`;
 });
-window.toggleCategory = function(id) {
-    const el = document.getElementById('cat-services-' + id);
-    const arrow = document.getElementById('cat-arrow-' + id);
-    if (el.style.display === 'none') { el.style.display = 'block'; arrow.style.transform = 'rotate(90deg)'; }
-    else { el.style.display = 'none'; arrow.style.transform = 'rotate(0)'; }
-};
 window.filterServices = function(q) {
     q = q.toLowerCase();
     AppData.categories.forEach(c => {

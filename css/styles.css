@@ -251,6 +251,10 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 700; line-hei
     display: flex; align-items: center; justify-content: center; font-size: 1.75rem; }
 .category-name { font-size: 0.875rem; font-weight: 600; color: var(--gray-700); }
 
+/* Services Direct Grid */
+.services-direct-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+.service-direct-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-4px); }
+
 /* Master Card */
 .master-card { display: flex; gap: 16px; padding: 20px; border-radius: var(--radius-lg);
     background: white; border: 1px solid var(--gray-100); box-shadow: var(--shadow-sm);

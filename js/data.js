@@ -36,14 +36,14 @@ const AppData = {
     },
 
     categories: [
-        { id: 1, name: 'Santexnika', icon: '🔧', color: '#3B82F6', bgColor: '#EFF6FF', subServices: ['Kran ta\'mirlash','Truba almashtirish','Kanalizatsiya tozalash','Dush kabina o\'rnatish','Suvni isitgich ta\'mirlash'] },
-        { id: 2, name: 'Elektrika', icon: '⚡', color: '#F59E0B', bgColor: '#FFFBEB', subServices: ['Rozetka o\'rnatish','Simlarni almashtirish','Avtomat o\'rnatish','Lyustra o\'rnatish','Elektr panelini ta\'mirlash'] },
-        { id: 3, name: 'Konditsioner', icon: '❄️', color: '#06B6D4', bgColor: '#ECFEFF', subServices: ['Konditsioner o\'rnatish','Tozalash va texnik xizmat','Freon to\'ldirish','Ta\'mirlash'] },
-        { id: 4, name: 'Uy ta\'miri', icon: '🏠', color: '#8B5CF6', bgColor: '#F5F3FF', subServices: ['Devor suvash','Bo\'yash','Laminat yotqizish','Plitka yopishtirish','Ship o\'rnatish'] },
-        { id: 5, name: 'Mebel', icon: '🪑', color: '#EC4899', bgColor: '#FDF2F8', subServices: ['Mebel yig\'ish','Mebel ta\'mirlash','Ko\'chirish'] },
-        { id: 6, name: 'Texnika', icon: '📱', color: '#10B981', bgColor: '#ECFDF5', subServices: ['Kir yuvish mashinasi','Muzlatgich ta\'mirlash','Televizor ta\'mirlash','Kompyuter ta\'mirlash'] },
-        { id: 7, name: 'Tozalash', icon: '🧹', color: '#6366F1', bgColor: '#EEF2FF', subServices: ['Uy tozalash','Ofis tozalash','Oyna yuvish','Gilam tozalash'] },
-        { id: 8, name: 'Boshqalar', icon: '🔨', color: '#64748B', bgColor: '#F8FAFC', subServices: ['Eshik o\'rnatish','Qulf almashtirish','Deraza o\'rnatish','Boshqa xizmatlar'] },
+        { id: 1, name: 'Santexnika', icon: '🔧', color: '#3B82F6', bgColor: '#EFF6FF', subServices: ['Kran ta\'mirlash'] },
+        { id: 2, name: 'Elektrika', icon: '⚡', color: '#F59E0B', bgColor: '#FFFBEB', subServices: ['Rozetka o\'rnatish'] },
+        { id: 3, name: 'Konditsioner', icon: '❄️', color: '#06B6D4', bgColor: '#ECFEFF', subServices: ['Konditsioner o\'rnatish'] },
+        { id: 4, name: 'Uy ta\'miri', icon: '🏠', color: '#8B5CF6', bgColor: '#F5F3FF', subServices: ['Devor bo\'yash'] },
+        { id: 5, name: 'Mebel', icon: '🪑', color: '#EC4899', bgColor: '#FDF2F8', subServices: ['Mebel yig\'ish'] },
+        { id: 6, name: 'Texnika', icon: '📱', color: '#10B981', bgColor: '#ECFDF5', subServices: ['Muzlatgich ta\'mirlash'] },
+        { id: 7, name: 'Tozalash', icon: '🧹', color: '#6366F1', bgColor: '#EEF2FF', subServices: ['Uy tozalash'] },
+        { id: 8, name: 'Boshqalar', icon: '🔨', color: '#64748B', bgColor: '#F8FAFC', subServices: ['Eshik o\'rnatish'] },
     ],
 
     masters: [
