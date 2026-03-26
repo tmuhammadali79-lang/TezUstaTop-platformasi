@@ -643,7 +643,7 @@ Router.register('client/services', () => {
                 const svc = c.subServices[0];
                 const master = AppData.masters.find(m => m.categoryId === c.id);
                 const masterCount = AppData.masters.filter(m => m.categoryId === c.id).length;
-                return `<div class="card service-direct-card" id="cat-${c.id}" onclick="window.openNewOrder('${svc}',${c.id})" style="cursor:pointer;transition:var(--transition-base);overflow:hidden">
+                return `<div class="card service-direct-card" id="cat-${c.id}" onclick="window.openNewOrder(${c.id})" style="cursor:pointer;transition:var(--transition-base);overflow:hidden">
                     <div style="background:${c.bgColor};padding:24px;text-align:center;margin:-20px -20px 16px">
                         <div style="font-size:2.5rem;margin-bottom:8px">${c.icon}</div>
                         <div style="font-family:var(--font-display);font-weight:700;font-size:1.125rem;color:var(--gray-900)">${c.name}</div>
@@ -673,8 +673,9 @@ window.filterServices = function(q) {
         if (el) el.style.display = match ? '' : 'none';
     });
 };
-window.openNewOrder = function(service, catId) {
+window.openNewOrder = function(catId) {
     const cat = AppData.categories.find(c => c.id === catId);
+    const service = cat ? cat.subServices[0] : '';
     const masters = AppData.masters.filter(m => m.categoryId === catId);
     main().querySelector('.page-container').innerHTML = `
         <div style="margin-bottom:24px"><button class="btn btn-ghost btn-sm" onclick="Router.navigate('client/services')">← Orqaga</button></div>
